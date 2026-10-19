@@ -1,0 +1,37 @@
+CAGE4 Studio Complete v0.1.4 — 先读我
+===================================
+服务器: Mac Studio M3 Ultra / 96GB
+
+【你已经安装完成，且 smoke test 通过】
+不要重装! 只需要在 Mac Studio 覆盖本包脚本，然后检查+重启界面。
+
+  mkdir -p ~/cage4-studio
+  unzip -o ~/Downloads/CAGE4_Studio_M3_Ultra_Complete_v0.1.4.zip -d ~/cage4-studio
+  cd ~/cage4-studio
+  chmod +x *.sh
+  bash check.sh
+  bash stop.sh
+  bash start.sh
+
+检查结果应包括: WRAPPER STEP PASS, SMOKE TEST PASS。
+控制台在 Mac Studio 本机: http://127.0.0.1:8501
+TensorBoard: http://127.0.0.1:6006
+
+【没有装过的全新 Mac Studio】
+
+  mkdir -p ~/cage4-studio
+  unzip -o ~/Downloads/CAGE4_Studio_M3_Ultra_Complete_v0.1.4.zip -d ~/cage4-studio
+  cd ~/cage4-studio
+  chmod +x *.sh
+  PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple bash install.sh
+
+【本地电脑打开界面】
+
+  python3 local/connect.py --host 你的MacStudioIP --user YOUR_USER
+
+注意: 上面这条命令在“本地电脑”执行，本地电脑需要先把 local/connect.py
+复制过去，安装 OpenSSH 且能 SSH 登录服务器。PyCharm 用本地 Python
+解释器运行该脚本；写算法则使用服务器的远程 SSH Python 解释器。
+
+请按 README_中文.md 或 docs 目录分步执行。
+不要使用 sudo；不要对公网开放 8501/6006；保留 runs/ 实验数据。
