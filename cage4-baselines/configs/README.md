@@ -12,4 +12,4 @@
 
 配置只决定本次新启动的实验，不会改变已有进程。每个 run 自动保存规范化 config.json。运行路径、checkpoint 与评估 seeds 由 CLI 显式传入，不要把个人绝对路径、密钥、SSH 设置放进公开 YAML。
 
-平铺的 actor_critic.yaml / random.yaml / sleep.yaml 保留 v0.3.0 的原始参数以兼容历史命令；新增实验请使用上表分目录配置。历史 Random/Sleep 模板仍是 30 Episode，新的对照评估模板是 5 Episode。不要混用后误判实验量。
+旧的平铺 actor_critic.yaml / random.yaml / sleep.yaml 已移除；统一使用分目录配置。论文五算法使用 paper/，业务预算使用 safety/。日常启动不必手工传路径，run_baseline.py 自动读取对应配置。

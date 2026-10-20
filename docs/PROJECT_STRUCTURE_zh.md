@@ -39,7 +39,8 @@ cage4-studio/                         # Git 仓库根目录
 | src/cage4_baselines/config.py | YAML 加载和字段范围检查 | 新超参数必须同步这里 |
 | src/cage4_baselines/__main__.py | 统一命令入口 | 通常无需修改 |
 | tests/ | 研究层测试 | 算法、配置、输入隔离、兼容入口 |
-| .run/ | PyCharm 共享运行配置 | 常用训练/对照命令 |
+| src/cage4_baselines/experiments/run_baseline.py | 直接训练入口 | 选算法、轮数、seed，右键运行 |
+| src/cage4_baselines/algorithms/my_algorithm.py | 自定义算法 | 网络、损失、训练更新 |
 | artifacts/ | 可选的临时输出 | 默认被 Git 忽略，正式结果推荐放项目外 |
 
 ## 3. “环境”分别指什么
@@ -78,7 +79,7 @@ YAML 为显式完整配置，不做隐式继承。新增文件按目的命名：
 
 v0.3.0 的导入路径 adapter.py、engine.py、observations.py、runner.py、telemetry.py 保留为薄兼容入口，真实实现只有对应子包中的一份。`python -m cage4_baselines.runner` 仍能运行；新命令优先用 `python -m cage4_baselines`。
 
-平铺的旧 YAML 为原参数兼容副本，明确不作为新模板；新增实验只使用分目录配置。旧 Random/Sleep YAML 是 30 Episode，新对照评估模板是 5 Episode。两者不要混淆。
+旧的平铺 YAML 和过时 .run 配置已删除；统一使用分目录配置和代码目录中的 run_baseline.py。
 
 本次重构没有改变 Actor-Critic 数学实现或 run schema，也没有启用 IPPO/MAPPO。已保存的 v0.3.0 新编码 checkpoint 继续按原有张量容器格式读取；更早 BlueFlat 编码权重仍不兼容。Server 固定 v0.3.0 部署无需因研究目录整理而重装。
 

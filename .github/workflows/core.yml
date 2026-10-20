@@ -25,4 +25,4 @@ jobs:
           bash -n client/connect.sh client/build_mac_app.sh ops/check.sh ops/research.sh
           python -m cage4_baselines.paper --help
           python -m cage4_baselines.safety.calibrate --help
-          python -m py_compile cage4-baselines/run_baseline.py cage4-baselines/my_algorithm.py
+          python -m py_compile cage4-baselines/src/cage4_baselines/experiments/run_baseline.py cage4-baselines/src/cage4_baselines/algorithms/my_algorithm.py

@@ -7,10 +7,10 @@ ALGORITHM = "mappo"  # ippo / mappo / happo / mappo_lagrangian / macpo / my_algo
 EPISODES = 2        # 首次先跑 2 回合；正式训练再按实验设计增大
 SEED = 101
 
-PROJECT = Path(__file__).resolve().parent
+PROJECT = Path(__file__).resolve().parents[3]
 # 显式使用本项目源码，使现有服务器 Python 和独立研究 Python 都可运行。
 # 不切换解释器、不启动子进程，因此 PyCharm 的断点调试仍有效。
-sys.path[:0] = [str(PROJECT), str(PROJECT / "src"), str(PROJECT.parent / "protocol")]
+sys.path[:0] = [str(PROJECT / "src"), str(PROJECT.parent / "protocol")]
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
                   checkpoint_every=min(config["checkpoint_every"], EPISODES))
     custom = None
     if ALGORITHM == "my_algorithm":
-        from my_algorithm import MyAlgorithm
+        from cage4_baselines.algorithms.my_algorithm import MyAlgorithm
         custom = MyAlgorithm
     print(f"开始训练：{ALGORITHM}，{EPISODES} 回合，seed={SEED}", flush=True)
     print("第一个完整回合结束后，网页会出现回报、成本和训练指标。", flush=True)
