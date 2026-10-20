@@ -66,3 +66,7 @@ PY="$HOME/cage4-research-env/bin/python"
 参考：[MAPPO作者实现](https://github.com/marlbenchmark/on-policy)、[MACPO/MAPPO-L作者实现](https://github.com/chauncygu/Multi-Agent-Constrained-Policy-Optimisation)、[MACPO论文](https://arxiv.org/abs/2110.02793)。
 
 完整horizon验收可在上述命令后加 `--full --algorithms mappo macpo`：使用提交的256双隐藏层与8回合完整批次，每方法3992条训练transition、2个独立完整评估episode；不开回放，避免验收生成大量临时文件。它仍是集成检查，不能证明2000回合训练已收敛。
+
+本次完整horizon实测已通过：MAPPO和MACPO各8×499=3992条真实训练transition，只在第8回合更新，随后各在53001/53002完成499步评估；所有critic更新、数值检查及checkpoint读取通过。它不是多训练seed性能实验。另通过13项协议/服务与24项研究/真实环境单元测试，全部五方法的短程训练、评估和作者buffer数值对照均通过。
+
+当前Sleep校准预算的统计可行性已验证，但尚未证明它对训练后的各方法都形成有效约束。正式研究应在独立验证场景检查预算是否过松/不可行并冻结预算设计，报告三档敏感性，避免在最终测试集上按结果挑预算。
