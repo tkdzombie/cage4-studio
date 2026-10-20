@@ -8,21 +8,34 @@ from cage4_server.topology import dot_graph
 
 st.set_page_config(page_title='CAGE4 Studio',page_icon='🛡️',layout='wide')
 st.title('CAGE4 Studio · 实验观测台')
-st.caption('0.4.0 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
+st.caption('0.4.1 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
 roots=[Path(x).expanduser() for x in os.environ.get('CAGE4_RUN_ROOTS','runs').split(os.pathsep) if x]
+SHOW_HISTORY=os.environ.get('CAGE4_SHOW_HISTORY','0') == '1'
 all_runs=reader.runs(roots)
+if not SHOW_HISTORY: all_runs=all_runs[:1]
 if not all_runs:
     st.info('尚无实验记录。请在 cage4-baselines 中运行 train 或 evaluate。')
     st.stop()
 with st.sidebar:
-    selected=st.selectbox('实验记录',all_runs,format_func=lambda p:p.name)
+    if SHOW_HISTORY:
+        selected=st.selectbox('实验记录',all_runs,format_func=lambda p:p.name)
+    else:
+        selected=all_runs[0]
+        st.caption('当前实验：'+selected.name)
+        st.caption('新实验开始后自动切换；历史记录不在本页显示。')
     if st.button('刷新记录'): st.rerun()
     st.caption('数据目录由服务配置。网页不启动或停止训练，也不加载权重。')
     st.caption('TensorBoard 为可选独立服务，可通过 SSH 转发访问本地 6006 端口。')
 
 @st.fragment(run_every='5s')
 def monitor():
+    if not SHOW_HISTORY:
+        latest=reader.runs(roots)
+        if latest and latest[0] != selected: st.rerun()
     state=reader.status(selected)
+    data=reader.metrics(selected)
+    if state.get('state') == 'finished' and data:
+        state={**state,'episode':data[-1]['episode'],'step':data[-1]['step']}
     a,b,c=st.columns(3)
     a.metric('状态',state.get('state','unknown'))
     b.metric('Episode',state.get('episode',0))
@@ -30,7 +43,6 @@ def monitor():
     if state.get('error'): st.error(state['error'])
     if state.get('heartbeat_age_seconds',0)>30:
         st.warning('进程仍存在，但记录超过 30 秒未更新；请检查研究进程日志。')
-    data=reader.metrics(selected)
     if not data:
         st.info('等待首个完整 Episode 指标。')
         return
@@ -55,7 +67,11 @@ def monitor():
             st.line_chart(pd.DataFrame(rows).set_index('episode'))
     st.dataframe(pd.DataFrame(data[-30:]),width='stretch')
 monitor()
-replay,compare,details=st.tabs(['Episode / Step 回放','对比实验','配置与来源'])
+if SHOW_HISTORY:
+    replay,compare,details=st.tabs(['Episode / Step 回放','对比实验','配置与来源'])
+else:
+    replay,details=st.tabs(['Episode / Step 回放','配置与来源'])
+    compare=None
 with replay:
     paths=reader.frame_paths(selected)
     episodes=sorted({p.parent.name for p in paths})
@@ -76,23 +92,24 @@ with replay:
         st.caption('Blue legal_mask 仅表示官方固定动作掩码允许；Red not_rejected 表示未记录 InvalidAction，不保证动作成功。')
         st.json({k:v for k,v in item.items() if k!='topology' and k not in ('hosts','links')},expanded=False)
     else: st.info('尚无可回放帧。')
-with compare:
-    choices=st.multiselect('选择实验',all_runs,default=[selected],format_func=lambda p:p.name)
-    metric = st.selectbox('回报口径', ['official_team_return', 'team_return'])
-    st.caption('仅显示具有所选指标的记录，避免新旧回报定义混用。')
-    curves=[];summaries=[]
-    for p in choices:
-        rows=reader.metrics(p)
-        label=p.parent.name+'/'+p.name
-        curves.extend({'episode':x['episode'],'run':label,'return':x[metric]} for x in rows if metric in x)
-        evaluation=reader.read(p,p/'evaluation.json',{})
-        manifest=reader.read(p,p/'manifest.json',{})
-        summaries.append({'run':label,'mode':manifest.get('mode','legacy'),
-                          'algorithm':manifest.get('algorithm','legacy'),**evaluation})
-    if curves:
-        st.line_chart(pd.DataFrame(curves).pivot_table(index='episode',columns='run',values='return',aggfunc='last'))
-    st.dataframe(pd.DataFrame(summaries),width='stretch')
-    st.caption('评估标准差按 seed 均值计算；训练曲线不能作为泛化评估结论。不同 encoder / 步长 / 红队配置的实验需单独解释。')
+if compare is not None:
+    with compare:
+        choices=st.multiselect('选择实验',all_runs,default=[selected],format_func=lambda p:p.name)
+        metric = st.selectbox('回报口径', ['official_team_return', 'team_return'])
+        st.caption('仅显示具有所选指标的记录，避免新旧回报定义混用。')
+        curves=[];summaries=[]
+        for p in choices:
+            rows=reader.metrics(p)
+            label=p.parent.name+'/'+p.name
+            curves.extend({'episode':x['episode'],'run':label,'return':x[metric]} for x in rows if metric in x)
+            evaluation=reader.read(p,p/'evaluation.json',{})
+            manifest=reader.read(p,p/'manifest.json',{})
+            summaries.append({'run':label,'mode':manifest.get('mode','legacy'),
+                              'algorithm':manifest.get('algorithm','legacy'),**evaluation})
+        if curves:
+            st.line_chart(pd.DataFrame(curves).pivot_table(index='episode',columns='run',values='return',aggfunc='last'))
+        st.dataframe(pd.DataFrame(summaries),width='stretch')
+        st.caption('评估标准差按 seed 均值计算；训练曲线不能作为泛化评估结论。不同 encoder / 步长 / 红队配置的实验需单独解释。')
 with details:
     st.json(reader.read(selected,selected/'config.json',{}))
     st.json(reader.read(selected,selected/'manifest.json',{'schema':'legacy'}))

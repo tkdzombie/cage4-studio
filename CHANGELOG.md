@@ -33,3 +33,8 @@
 - 启动入口移动到 `cage4-baselines/src/cage4_baselines/experiments/run_baseline.py`，自定义算法移动到 `algorithms/my_algorithm.py`；删除旧位置，避免多入口。
 - 删除过时的四个 .run 配置及三个平铺重复 YAML；保留按职责分目录的配置、依赖与兼容导入。
 - 启动仍不需要额外参数，环境/配置按脚本位置自动定位；自定义算法使用包内导入。
+
+## 客户端启动与最新实验显示修复
+
+- macOS客户端改用原生Cocoa启动程序及本地ad-hoc签名，保持安全SSH转发与错误日志；可从固定应用目录启动。
+- 网页实验按实际开始时间排序，避免acceptance前缀的旧记录盖过新训练。

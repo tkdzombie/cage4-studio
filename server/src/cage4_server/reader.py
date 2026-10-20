@@ -1,6 +1,7 @@
 """Read-only bounded access to v1 and legacy records; never unpickle checkpoints."""
 from pathlib import Path
 import json
+import math
 from collections import deque
 from cage4_protocol.store import SCHEMA,read_json,run_status
 MAX_JSON = 16*1024*1024
@@ -31,7 +32,20 @@ def runs(roots):
             manifest=read(root,p/'manifest.json',{})
             if manifest.get('schema')==SCHEMA or (p/'metrics.jsonl').is_file():
                 result.append(p)
-    return sorted(result,key=lambda p:p.name,reverse=True)
+    def started(folder):
+        state = read(folder, folder/'status.json', {})
+        stamp = state.get('started_at') if isinstance(state, dict) else None
+        if type(stamp) in (int, float) and math.isfinite(stamp):
+            return (stamp, folder.name)
+        # Legacy records have no common timestamp: use record metadata, not a
+        # directory prefix or directory mtime affected by later housekeeping.
+        for name in ('manifest.json', 'metrics.jsonl', 'status.json'):
+            try:
+                return (safe_file(folder, folder/name).stat().st_mtime, folder.name)
+            except (OSError, ValueError):
+                continue
+        return (0, folder.name)
+    return sorted(result, key=started, reverse=True)
 
 def records(folder,kind,limit=10000):
     files=sorted((folder/kind).glob('episode_*/step_*.json'))

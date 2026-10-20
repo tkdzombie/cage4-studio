@@ -130,6 +130,7 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
                        safety_budget_rate=rate, budget_excess=summary['mean_cost']-rate,
                        budget_violated=summary['mean_cost'] > rate)
             writer.record('metrics', episode, step, row); rows.append(row)
+            writer.status(episode=episode, step=step, seed=seed)
             if mode == 'train':
                 trained.append(seed)
                 if episode % c['checkpoint_every'] == 0 or episode == len(episode_seeds):
