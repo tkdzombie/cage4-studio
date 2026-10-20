@@ -35,14 +35,24 @@ class AuthorBaseline:
         overrides = dict(algorithm_name='mappo_lagr' if self.name == 'mappo_lagrangian' else self.name,
                          n_rollout_threads=1, use_recurrent_policy=False, use_naive_recurrent_policy=False,
                          use_popart=False, use_valuenorm=False, use_proper_time_limits=False,
-                         hidden_size=64, layer_N=2, recurrent_N=1, num_mini_batch=1,
-                         ppo_epoch=5, gamma=.99, gae_lambda=.95, lr=5e-4, critic_lr=5e-4,
-                         clip_param=.2, entropy_coef=.01, use_linear_lr_decay=False,
+                         hidden_size=256, layer_N=1, recurrent_N=1, num_mini_batch=1,
+                         ppo_epoch=10, gamma=.99, gae_lambda=.95, lr=5e-5, critic_lr=5e-5,
+                         clip_param=.2, entropy_coef=.001, use_linear_lr_decay=False,
                          episode_length=config['steps'], safety_bound=budget_rate*config['steps'])
-        allowed = {'hidden_size', 'ppo_epoch', 'lr', 'critic_lr', 'entropy_coef', 'clip_param', 'gamma', 'gae_lambda'}
+        allowed = {'hidden_size', 'ppo_epoch', 'lr', 'critic_lr', 'entropy_coef', 'clip_param', 'gamma', 'gae_lambda', 'layer_N'}
         user = config.get('hyperparameters', {})
         if set(user) - allowed:
             raise ValueError(f'Unsupported hyperparameters: {set(user)-allowed}')
+        for key,value in user.items():
+            if key in ('hidden_size','ppo_epoch','layer_N'):
+                high = 1024 if key=='hidden_size' else (100 if key=='ppo_epoch' else 8)
+                low = 0 if key=='layer_N' else 1
+                if type(value) is not int or not low<=value<=high: raise ValueError('Invalid '+key)
+            else:
+                if type(value) not in (int,float) or not np.isfinite(value): raise ValueError('Invalid '+key)
+                low = 0 if key=='entropy_coef' else 1e-10
+                high = .1 if key in ('lr','critic_lr') else 1.
+                if not low<=value<=high: raise ValueError('Invalid '+key)
         overrides.update(user)
         if self.name == 'macpo':
             # Author MACPO train() performs one pass, regardless of ppo_epoch.
@@ -89,7 +99,7 @@ class AuthorBaseline:
                     inputs[a].mask[None].astype(np.float32)) for a in self.names}
 
     def begin_episode(self):
-        self.history = []; self.pending = None
+        self.pending = None
 
     @torch.no_grad()
     def act(self, inputs, training=False, deterministic=True):
@@ -113,10 +123,10 @@ class AuthorBaseline:
         self.pending = records if training else None
         return actions
 
-    def observe(self, rewards, cost):
+    def observe(self, rewards, cost, terminal=False):
         if self.pending is None:
             raise RuntimeError('No training action to record')
-        self.history.append((self.pending, dict(rewards), float(cost)))
+        self.history.append((self.pending, dict(rewards), float(cost), bool(terminal)))
         self.pending = None
 
     def logp(self, a, buffer):
@@ -130,16 +140,20 @@ class AuthorBaseline:
         T = len(self.history)
         if T < 2:
             raise ValueError('Need at least two real transitions for advantage normalization')
+        episodes = sum(x[3] for x in self.history)
+        if not episodes or not self.history[-1][3]:
+            raise RuntimeError('Update requires complete episodes')
         buffers = {}
         for a in self.names:
             args = copy(self.args); args.episode_length = T
             b = self.Buffer(args, *self.spaces[a])
-            for t, (records, rewards, cost) in enumerate(self.history):
+            for t, (records, rewards, cost, terminal) in enumerate(self.history):
                 r = records[a]
                 b.obs[t] = r['obs']; b.share_obs[t] = r['cent']
                 b.available_actions[t] = r['available']; b.actions[t] = r['action']
                 b.action_log_probs[t] = r['logp']; b.value_preds[t] = r['value']
                 b.rewards[t] = rewards[a]*reward_scale
+                b.masks[t+1] = 0. if terminal else 1.
                 if self.safe:
                     b.costs[t] = cost; b.cost_preds[t] = r['cost_value']
             # This runner updates only at an actual finite-horizon terminal; no
@@ -148,10 +162,10 @@ class AuthorBaseline:
             b.compute_returns(np.zeros((1, 1), np.float32), self.trainers[a].value_normalizer)
             if self.safe:
                 b.compute_cost_returns(np.zeros((1, 1), np.float32), None)
-                b.aver_episode_costs.fill(sum(x[2] for x in self.history))
+                b.aver_episode_costs.fill(sum(x[2] for x in self.history)/episodes)
                 trainer = self.trainers[a]
-                trainer.safety_bound = self.rate*T
-                if self.name == 'macpo': trainer._max_lin_constraint_val = self.rate*T
+                trainer.safety_bound = self.rate*T/episodes
+                if self.name == 'macpo': trainer._max_lin_constraint_val = self.rate*T/episodes
             buffers[a] = b
         factor = np.ones((T, 1, 1), np.float32)
         order = [self.names[i] for i in torch.randperm(len(self.names)).tolist()] if self.sequential else self.names
@@ -185,7 +199,7 @@ class AuthorBaseline:
                     zero = b.rnn_states_cost[:-1, 0]
                     pred = policy.get_cost_values(b.share_obs[:-1, 0], zero, b.masks[:-1, 0])
                     values['cost_value_mse_after_update'] = float(((pred-torch.from_numpy(b.cost_returns[:-1, 0]))**2).mean())
-                values['budget_episode'] = self.rate*T
+                values['budget_episode'] = self.rate*T/episodes
                 if hasattr(trainer, 'lamda_lagr'): values['lagrange_multiplier'] = float(trainer.lamda_lagr)
             metrics[a] = values
         self.history = []

@@ -20,10 +20,10 @@ class MyAlgorithm(AuthorBaseline):
     def update(self, reward_scale):
         """在这里实现自己的训练更新；目前调用原 MAPPO 更新以保证示例可运行。
 
-        self.history 是本回合真实 transition 的列表，每项：
-          (records, rewards, cost)
+        self.history 是当前 rollout 批次多个完整回合的真实 transition 列表，每项：
+          (records, rewards, cost, terminal)
         records[agent] 包含 obs、cent、available、value、action、logp。
-        rewards 是五个 agent 的原始 reward；cost 是共同团队标量。
+        rewards 是五个 agent 的原始 reward；cost 是共同团队标量；terminal 标识回合边界。
         必须返回 {agent: {指标名称: 有限数值或bool}}，并清空已消费的 history。
 
         只修改损失/优化步骤时，也可在 __init__ 中替换 self.trainers 中

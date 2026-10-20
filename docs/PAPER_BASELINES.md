@@ -21,17 +21,17 @@ on-policy 使用 MIT。MACPO 锁定版本的 LICENSE 含未解决的合并标记
 ## 环境与统一输入
 
 - 使用同一 CybORG、FiniteStateRedAgent、五个 Blue、官方 BlueFixedActionWrapper 合法动作掩码。
-- actor 只接收本 agent 的 Blue observation 哈希特征 `blue-observation-hash/1`；不读取网络 Ground Truth、其他 Blue 输入、红队 Session 或 researcher cost 明细。
+- actor 只接收本 agent 的 Blue observation 结构化特征 `blue-belief-slots/1`，布局与信息边界见 [OBSERVATIONS_zh.md](OBSERVATIONS_zh.md)；不读取网络 Ground Truth、其他 Blue 输入、红队 Session 或 researcher cost 明细。
 - 集中 critic 仅拼接 Blue 观测，不使用 Ground Truth。safe learner 收到一个共同团队 cost 标量，五个 cost critic 使用同一团队约束；不是五个不同的辖区预算。
-- 全部五策略、不共享参数、feedforward CPU、64 隐藏单元、`layer_N=2`（层数含义沿用上游）、gamma=.99、GAE lambda=.95、PPO epoch=5、minibatch=1、Adam lr=5e-4、clip=.2、entropy=.01。MACPO 为作者 trust-region 单次更新，epoch 强制为 1；不能用 PPO epoch 伪装 MACPO 更新次数。
+- 全部五策略、不共享参数、feedforward CPU、两层256 隐藏单元、`layer_N=1`（上游额外层数）、gamma=.99、GAE lambda=.95、PPO epoch=10、minibatch=1、Adam lr=5e-5、clip=.2、entropy=.001。MACPO 为作者 trust-region 单次更新，epoch 强制为 1；不能用 PPO epoch 伪装 MACPO 更新次数。
 - 全部 reward 乘 .01 进入训练，保存和评估仍为官方原始 reward；cost 每步在 [0,1]，不做 reward scaling。
-- 关闭 PopArt/ValueNorm、RNN、人工 time-limit bootstrap。每次收集到实际回合终止才更新，buffer 使用真实执行的 T，绝不填充未执行步。作者默认值和显式覆盖的最终参数写入 `upstream-arguments.json`。
+- 关闭 PopArt/ValueNorm、RNN、人工 time-limit bootstrap。每批8个完整回合更新，GAE在每个terminal截断，buffer 使用真实执行的 T，绝不填充未执行步。作者默认值和显式覆盖的最终参数写入 `upstream-arguments.json`。
 
-这是一套**控制共同输入的 CAGE4 比较协议**，不是声称逐项复现某篇 CAGE4 论文。尤其哈希编码、无 Ground Truth 的集中 critic、训练 batch 大小可能不同。论文应报告编码与信息权限；复现特定论文还需按该论文的代码/配置另建 profile。当前没有把 QMIX、H-MARL 或未核验的论文代码登记成已实现算法。
+这是一套**控制共同输入的 CAGE4 比较协议**，不是声称逐项复现某篇 CAGE4 论文。尤其结构化编码、无 Ground Truth 的集中 critic、训练 batch 大小可能不同。论文应报告编码与信息权限；复现特定论文还需按该论文的代码/配置另建 profile。当前没有把 QMIX、H-MARL 或未核验的论文代码登记成已实现算法。
 
 ## 业务 cost 与预算
 
-完整依据、公式、独立校准数据、三档预算见 [SAFETY_COST_zh.md](SAFETY_COST_zh.md)。默认主预算为 0.2474800289213457，500 配置步在锁定 CybORG 版本实际执行 499 次 transition。算法接收的 episode sum 预算是 `rate × T`，不是直接将 rate 当累计 cost 阈值。
+完整依据、公式、独立校准数据、三档预算见 [SAFETY_COST_zh.md](SAFETY_COST_zh.md)。默认主预算为 0.2474800289213457，500 配置步在锁定 CybORG 版本实际执行 499 次 transition。算法比较批次内平均episode cost，预算是 `rate × 平均episode长度`，不是直接将 rate 当累计 cost 阈值。
 
 ## 在远程 Mac Studio / PyCharm 终端运行
 
@@ -47,9 +47,9 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 
 # 验证已经安装的真实环境及全部五算法训练/评估。
 "$PY" ops/validate_paper_baselines.py \
-  --runs "$HOME/cage4-experiments" --upstreams "$HOME/cage4-upstreams" \
+  --runs /tmp/cage4-validation/runs --upstreams "$HOME/cage4-upstreams" \
   --budget cage4-baselines/configs/safety/availability-v1.json \
-  --output "$HOME/cage4-experiments/paper-validation.json"
+  --output /tmp/cage4-validation/report.json
 
 # 正式训练（2000 episode；这是起始预算，不代表已收敛）。
 "$PY" -m cage4_baselines.paper train \
@@ -102,3 +102,5 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 扩展新算法：先核验论文/作者仓库/许可证和 commit → 新增独立 backend（或复用已证明兼容的 buffer）→ 保持局部 actor 信息权限和 cost/reward 口径 → 添加作者源 provenance → 通过动作 mask、真实梯度、权重保存/读取、评估不更新与数值测试 → 再加入算法表。不靠注册名称宣称实现。
 
 参考：[MAPPO 作者代码](https://github.com/marlbenchmark/on-policy)、[HAPPO 论文](https://arxiv.org/abs/2109.11251)、[MACPO/MAPPO-L 论文](https://arxiv.org/abs/2110.02793)、[CAGE4 官方环境](https://github.com/cage-challenge/cage-challenge-4)、[CAGE4 H-MARL 研究](https://arxiv.org/abs/2410.17351)。
+
+默认磁盘仅保留最近5次运行，网页仅显示最新一次；自动清理和结构化输入版本见 [OBSERVATIONS_zh.md](OBSERVATIONS_zh.md)。验收请使用临时目录，不能占用正式实验保留名额。

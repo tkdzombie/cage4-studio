@@ -3,7 +3,7 @@ algorithm: happo
 seed: 101
 episodes: 2000
 steps: 500
-obs_dim: 512
+rollout_episodes: 8
 reward_scale: 0.01
 budget_level: main
 checkpoint_every: 100
@@ -11,11 +11,20 @@ record_replay: true
 snapshot_every: 50
 deterministic_eval: true
 hyperparameters:
-  hidden_size: 64
-  ppo_epoch: 5
-  lr: 0.0005
-  critic_lr: 0.0005
+  hidden_size: 256
+  layer_N: 1
+  ppo_epoch: 10
+  lr: 0.00005
+  critic_lr: 0.00005
   gamma: 0.99
   gae_lambda: 0.95
   clip_param: 0.2
-  entropy_coef: 0.01
+  entropy_coef: 0.001
+observation:
+  mode: belief  # current / persistent / age / belief (age + confidence)
+  age_max: 500
+  decay: 0.01
+  dropout: 0.0
+  delay: 0
+  noise: 0.0
+  seed: 0

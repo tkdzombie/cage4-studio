@@ -28,7 +28,7 @@ Red validity 的 invalid 来自官方返回的 InvalidAction；not_rejected 只�
 
 状态：running/finished/stopped/error。SIGINT/SIGTERM 请求在步间停止并写 stopped；SIGKILL/断电后，通过 PID + ps 出生时间及命令比对显示 interrupted，PID 被复用也不当作原进程。无法查询身份时显示 unverified。heartbeat 只代表最后写入时刻，进程存在但 heartbeat 很旧仅提示，不擅自宣布停止。网页从不发送信号。完整状态和错误栈保存在 status.json。
 
-encoder 为 blue-observation-hash/1：将该 agent 的实际 observation 递归展开为稳定路径/值 token，BLAKE2b 哈希到 obs_dim，计数后 tanh。无历史状态记忆，可能哈希碰撞和信息压缩，作为可运行参考而非最佳特征设计。禁止把 frames/topology 或 red 传入算法。旧 BlueFlat checkpoint 不兼容，加载时校验 encoder 和模型空间。
+encoder 为 blue-belief-slots/1：实际Blue观测的固定主机槽位、事件历史、动作结果及消息位，不读内部state。布局和字段见 OBSERVATIONS_zh.md；每次运行保存 observation-schema.json。旧哈希 checkpoint 不兼容。
 
 checkpoint 仅在可信研究命令行加载，使用 torch.load(weights_only=True)；网页从不反序列化权重。保存模型、optimizer、配置、Episode；当前只支持用于评估，尚未实现断点续训或完全 RNG 状态恢复。
 
@@ -36,4 +36,6 @@ checkpoint 仅在可信研究命令行加载，使用 torch.load(weights_only=Tr
 
 ## 0.4.0 向后兼容研究字段
 
-仍使用 `cage4.run/1` 原子文件 envelope，manifest 新增 protocol=`cage4.paper-common-observation/1`、upstream commit/hash、cost_version、safety_budget_rate/level、critic_information、parameter_sharing 与 smoke 标记；config/budget/upstream-arguments 独立保存。metrics 添加 official_team_return（团队 reward 一次）、official_script_compat_return（匹配官方脚本终止步排除顺序）、safety（mean/sum、请求加权失败率、覆盖）、预算和超限量；原 team_return 保留。每个训练 agent 的 losses 保存作者字段及展示别名、模型实际权重是否改变。MACPO 上游错误的 cost_loss 诊断被省略，另写更新后 cost critic MSE。frames 新增 safety，每个实际步写入一次。详情见 PAPER_BASELINES.md / SAFETY_COST_zh.md。旧 Server 能读取 envelope，但0.4 UI 才区分这些回报口径并展示 cost。
+仍使用 `cage4.run/1` 原子文件 envelope，manifest 新增 protocol=`cage4.paper-common-observation/2`、upstream commit/hash、cost_version、safety_budget_rate/level、critic_information、parameter_sharing 与 smoke 标记；config/budget/upstream-arguments 独立保存。metrics 添加 official_team_return（团队 reward 一次）、official_script_compat_return（匹配官方脚本终止步排除顺序）、safety（mean/sum、请求加权失败率、覆盖）、预算和超限量；原 team_return 保留。每个训练 agent 的 losses 保存作者字段及展示别名、模型实际权重是否改变。MACPO 上游错误的 cost_loss 诊断被省略，另写更新后 cost critic MSE。frames 新增 safety，每个实际步写入一次。详情见 PAPER_BASELINES.md / SAFETY_COST_zh.md。旧 Server 能读取 envelope，但0.4 UI 才区分这些回报口径并展示 cost。
+
+RunWriter在创建及结束运行时按started_at保留最近5次，永久删除较早目录及权重；活跃/未验证写入者受保护，清理加目录锁，详见OBSERVATIONS_zh.md。

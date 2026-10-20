@@ -2,7 +2,6 @@ import unittest
 try:
  import numpy as np
  from cage4_baselines.core.types import PolicyInput
- from cage4_baselines.envs.observations import encode
  from cage4_baselines.algorithms import create
  HAS_NUMPY=True
 except ImportError:HAS_NUMPY=False
@@ -13,10 +12,6 @@ class PolicyTests(unittest.TestCase):
   return {f'blue_agent_{i}':PolicyInput(np.ones(64,dtype=np.float32),np.array([False,True,True]),('bad','Sleep','Monitor')) for i in range(5)}
  def config(self):
   return dict(seed=1,device='cpu',lr=.003,gamma=.99,entropy_coef=.01,plugins=[])
- def test_observation_is_deterministic_and_agent_local(self):
-  a={'success':'TRUE','known_host':{'Processes':[{'PID':1}]}}
-  self.assertTrue(np.array_equal(encode(a),encode(dict(reversed(list(a.items()))))))
-  self.assertFalse(np.array_equal(encode(a),encode({'other':1})))
  def test_baselines_obey_mask(self):
   inputs=self.inputs()
   for name in ('random','sleep'):

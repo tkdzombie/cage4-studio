@@ -8,7 +8,6 @@ device: cpu
 lr: 0.0003
 gamma: 0.99
 entropy_coef: 0.01
-obs_dim: 512
 snapshot_every: 5
 checkpoint_every: 1
 tensorboard: false

@@ -3,9 +3,9 @@
 在 Toolbox 连接的**远程 PyCharm**中使用原项目。若左侧最上层是 `cage4-research`，先展开其中的 `cage4-baselines`，下面路径都从这里开始。
 
 1. 打开代码目录中的 `src/cage4_baselines/experiments/run_baseline.py`。
-2. 文件顶部选择 `ALGORITHM = "mappo"`，设置 `EPISODES = 2`、`SEED = 101`。
+2. 文件顶部选择 `ALGORITHM = "mappo"`，设置 `EPISODES = None`（按YAML正式训练2000回合；调试可填整数）、`SEED = 101`。
 3. 在这个文件里右键 → **Run 'run_baseline'**。不需要填写模块名称、参数或工作目录；已有服务器 Conda Python 和独立研究 Python 都可用。断点调试选择 Debug。
-4. 打开原来的 Client.app，在网页选最新实验；第一个完整回合结束后显示指标。App 只看记录，关闭它不影响训练。
+4. 打开原来的 Client.app，网页自动显示最新实验；每回合显示回报和成本，每8回合显示更新损失。App 只看记录，关闭它不影响训练。
 
 可选算法：`ippo`、`mappo`、`happo`、`mappo_lagrangian`、`macpo`。程序自动读取对应 YAML；训练默认完整500配置步，不用记 cost/budget/源码缓存路径。切换算法只改第一行字符串。
 
@@ -22,3 +22,5 @@
 ## 终端启动
 
 在远程终端进入项目的 `src/cage4_baselines/experiments/` 文件夹后，执行 `python run_baseline.py` 即可，无额外参数；使用已配置的服务器Python。PyCharm右键Run/Debug则不需要手动切换文件夹。`ALGORITHM = "mappo"` 运行已有MAPPO；`ALGORITHM = "my_algorithm"` 才运行自己的文件。
+
+输入字段和训练更新规则见 [OBSERVATIONS_zh.md](OBSERVATIONS_zh.md)。磁盘仅保留最近5次运行，网页只显示最新一次。

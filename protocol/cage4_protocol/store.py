@@ -73,6 +73,7 @@ class RunWriter:
         atomic_json(self.path/'manifest.json', {'schema':SCHEMA, **metadata})
         atomic_json(self.path/'config.json', config)
         self.status()
+        prune_runs([root])
     def status(self, **values):
         self.state.update(values, heartbeat=time.time())
         atomic_json(self.path/'status.json', self.state)
@@ -85,3 +86,53 @@ class RunWriter:
         atomic_json(path, {'schema':SCHEMA, 'episode':episode, 'step':step, **data})
     def finish(self, state='finished', **kw):
         self.status(state=state, finished_at=time.time(), **kw)
+        prune_runs([self.path.parent])
+
+
+def prune_runs(roots, keep=5):
+    """Permanently retain newest runs; never delete a live/unverifiable writer.
+
+    All files in a removed run (including checkpoints and replay) are deleted.
+    Only direct, recognized run folders are managed; no symlink is followed.
+    macOS/Linux advisory locks serialize competing cleanup operations.
+    """
+    import fcntl
+    import math
+    import shutil
+    from contextlib import ExitStack
+    if type(keep) is not int or keep < 1:
+        raise ValueError('keep must be a positive integer')
+    roots = sorted({Path(root).resolve() for root in roots}, key=str)
+    removed = []
+    with ExitStack() as stack:
+        for root in roots:
+            root.mkdir(parents=True, exist_ok=True)
+            lock = stack.enter_context((root/'.retention.lock').open('a'))
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        candidates = []
+        for root in roots:
+            for folder in root.iterdir():
+                if folder.is_symlink() or not folder.is_dir(): continue
+                manifest = read_json(folder/'manifest.json', {})
+                if not isinstance(manifest,dict): continue
+                if manifest.get('schema') != SCHEMA and not (folder/'metrics.jsonl').is_file(): continue
+                state = read_json(folder/'status.json', {})
+                if not isinstance(state,dict): continue
+                stamp = state.get('started_at')
+                if type(stamp) not in (int, float) or not math.isfinite(stamp):
+                    record = folder/('manifest.json' if manifest else 'metrics.jsonl')
+                    stamp = record.stat().st_mtime
+                candidates.append((stamp, folder))
+        candidates.sort(key=lambda item:(item[0], str(item[1])), reverse=True)
+        protected = {p for _,p in candidates[:keep]}
+        for _, folder in candidates:
+            if folder in protected: continue
+            state = run_status(folder)
+            # Older formats cannot verify PID reuse: conservatively keep a live PID.
+            if state.get('state') == 'unverified': continue
+            if state.get('state') in ('running', 'starting'):
+                if state.get('identity') or process_identity(state.get('pid')): continue
+            if not (folder/'status.json').exists(): continue  # writer may be initializing
+            shutil.rmtree(folder)
+            removed.append(folder)
+    return removed
