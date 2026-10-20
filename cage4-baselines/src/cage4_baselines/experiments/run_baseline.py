@@ -35,7 +35,9 @@ def main():
     if ALGORITHM == "my_algorithm":
         from cage4_baselines.algorithms.my_algorithm import MyAlgorithm
         custom = MyAlgorithm
+        config["num_envs"] = 1  # 自定义扩展先保留单进程断点调试
     print(f"开始训练：{ALGORITHM}，{episodes} 回合，seed={SEED}", flush=True)
+    print(f"环境进程：{config.get('num_envs',1)}，模型线程：{config.get('torch_threads',1)}，每 {config['checkpoint_every']} 回合保存权重。",flush=True)
     print("每回合记录回报与成本；每个 rollout 批次更新权重并记录损失。磁盘只保留最近 5 次运行。", flush=True)
     path = run(config, Path.home() / "cage4-experiments", Path.home() / "cage4-upstreams",
                PROJECT / "configs" / "safety" / "availability-v1.json", policy_factory=custom)

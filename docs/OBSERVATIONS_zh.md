@@ -35,7 +35,7 @@
 
 五个策略分别训练、不共享权重，CPU；actor 和 critic 各两层256隐藏单元（上游先建第一层，layer_N=1再加一层）。lr/critic_lr=5e-5，gamma=.99，GAE=.95，PPO clip=.2，entropy=.001，PPO每批10轮。MACPO继续使用作者约束更新与单次 trust-region 更新，不使用PPO多轮替代。
 
-默认每8个完整回合组成一个批次，500配置步在锁定环境实际499步，通常每批3992条团队transition。GAE在每个回合终止处截断；集中输入和顺序importance factor保持一致。安全算法使用批次内平均episode cost，与 rate×平均episode长度比较，不把8回合的累计cost误当单回合。最后不足8个回合时消费真实剩余数据。每回合写回报/cost，只在更新发生时写loss，空loss不是训练故障。
+默认每16个完整回合组成一个批次，500配置步在锁定环境实际499步，通常每批7984条团队transition。GAE在每个回合终止处截断；集中输入和顺序importance factor保持一致。安全算法使用批次内平均episode cost，与 rate×平均episode长度比较，不把8回合的累计cost误当单回合。最后不足16个回合时消费真实剩余数据。每回合写回报/cost，只在更新发生时写loss，空loss不是训练故障。
 
 此批次规模适合现有单机训练，并非论文中的百万样本/30 worker设置。默认2000回合约99.8万次环境transition，作为统一起始预算；它不证明收敛。独立训练seed、评估集合、回报/cost口径和算法来源见 [PAPER_BASELINES.md](PAPER_BASELINES.md)。应先按共同预算比较，再依据独立验证曲线统一延长，不能只给表现差的方法额外数据。
 

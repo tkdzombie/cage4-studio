@@ -38,8 +38,17 @@ def monitor():
         state={**state,'episode':data[-1]['episode'],'step':data[-1]['step']}
     a,b,c=st.columns(3)
     a.metric('状态',state.get('state','unknown'))
-    b.metric('Episode',state.get('episode',0))
+    b.metric('已完成 Episode',state.get('completed_episodes',state.get('episode',0)))
     c.metric('Step',state.get('step',0))
+    execution=reader.read(selected,selected/'manifest.json',{}).get('execution',{})
+    if execution:
+        d,e,f=st.columns(3)
+        d.metric('并行环境',state.get('num_envs',execution.get('num_envs',1)))
+        speed=state.get('transitions_per_second')
+        e.metric('总体采样速度',f'{speed:.1f} 环境步/秒' if isinstance(speed,(int,float)) else '测量中')
+        phases={'collecting':'并行采样','updating':'更新模型','recording':'写入指标'}
+        f.metric('阶段',phases.get(state.get('phase'),state.get('phase','初始化')))
+        st.caption(f"模型计算线程：{execution.get('torch_threads',1)}；速度包含初始化、采样、更新和保存开销。")
     if state.get('error'): st.error(state['error'])
     if state.get('heartbeat_age_seconds',0)>30:
         st.warning('进程仍存在，但记录超过 30 秒未更新；请检查研究进程日志。')
@@ -51,7 +60,9 @@ def monitor():
     metric = 'official_team_return' if all('official_team_return' in x for x in data) else 'team_return'
     st.caption('官方团队回报：共享 reward 每步计一次，包含已执行的终止步。' if metric == 'official_team_return' else
                '旧版 team_return：五个 Blue 回报之和，可能重复共享奖励；与官方团队回报分开比较。')
-    st.line_chart(pd.DataFrame([{'episode':x['episode'],metric:x[metric]} for x in data]).set_index('episode'))
+    returns=pd.DataFrame([{'episode':x['episode'],metric:x[metric]} for x in data]).set_index('episode')
+    returns['50回合滑动平均']=returns[metric].rolling(50,min_periods=10).mean()
+    st.line_chart(returns)
     safety = [{'episode':x['episode'], '业务失败率': x['safety']['mean_cost'],
                '预算': x['safety_budget_rate']} for x in data if 'safety' in x]
     if safety:

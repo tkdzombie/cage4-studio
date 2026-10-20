@@ -22,7 +22,7 @@ SEED = 101
 
 现有算法：`ippo`、`mappo`、`happo`、`mappo_lagrangian`、`macpo`。跑自己的代码设置 `ALGORITHM = "my_algorithm"`；模板默认沿用 MAPPO，未修改时不算新算法。环境、配置、预算、实验保存路径自动定位，无需填写额外参数。终端在启动文件所在目录、使用现有服务器 Python 执行 `python run_baseline.py` 也可。
 
-打开现有 Client.app 查看记录；网页可先开，关闭不影响训练。第一个完整 Episode 结束后显示新曲线。
+打开现有 Client.app 查看记录；网页可先开，关闭不影响训练。首个同步采样工作块完成后显示新曲线；并行采样期间可查看进程数、阶段和速度。
 
 ## 项目目录
 
@@ -58,3 +58,5 @@ MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版�
 结构化输入、正式训练批次和最近5次运行的永久删除规则见 [观测与训练协议](docs/OBSERVATIONS_zh.md)。
 
 研究实现核验见 [Baseline审计](docs/BASELINE_AUDIT_zh.md)：明确作者核心、CAGE4适配和仍需完成的正式多seed实验，不能将短程验收当作论文性能复现。
+
+Mac Studio 多核参数、50回合checkpoint及可复现吞吐测试见 [多核训练](docs/PERFORMANCE_zh.md)。MAPPO支持同步多环境采样；自定义算法保留单进程断点调试。

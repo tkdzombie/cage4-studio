@@ -21,6 +21,8 @@ class ProjectContractTests(unittest.TestCase):
   for algorithm in ALGORITHMS:
    c=load_config(ROOT/'configs/paper'/f'{algorithm}.yaml')
    self.assertEqual(c['algorithm'],algorithm)
+   self.assertEqual(c['checkpoint_every'],50)
+   self.assertEqual(c['rollout_episodes'],16)
    data, rate=read_budget(ROOT/'configs/safety/availability-v1.json',c['steps'])
    self.assertTrue(data['validation_mean_feasible'])
    self.assertTrue(0 < rate < 1)

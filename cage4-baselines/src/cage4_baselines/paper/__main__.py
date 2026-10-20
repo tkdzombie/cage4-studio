@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import time
+from contextlib import nullcontext
 import numpy as np
 import yaml
 from cage4_protocol.store import RunWriter, atomic_json
@@ -21,7 +23,7 @@ def load_config(path):
     required = {'algorithm', 'seed', 'episodes', 'steps', 'reward_scale', 'checkpoint_every'}
     if not isinstance(c, dict) or not required <= c.keys():
         raise ValueError(f'Missing config fields: {required - (c.keys() if isinstance(c, dict) else set())}')
-    allowed = required | {'hyperparameters', 'record_replay', 'snapshot_every', 'deterministic_eval', 'budget_level', 'rollout_episodes', 'observation'}
+    allowed = required | {'hyperparameters', 'record_replay', 'snapshot_every', 'deterministic_eval', 'budget_level', 'rollout_episodes', 'observation', 'num_envs', 'torch_threads'}
     if set(c) - allowed: raise ValueError(f'Unknown config fields: {set(c)-allowed}')
     for flag in ('record_replay', 'deterministic_eval'):
         if flag in c and type(c[flag]) is not bool: raise ValueError(f'Invalid {flag}')
@@ -35,6 +37,8 @@ def load_config(path):
     if c.get('snapshot_every', 50) < 1: raise ValueError('Invalid snapshot_every')
     if type(c.get('rollout_episodes', 8)) is not int or not 1 <= c.get('rollout_episodes',8) <= 128:
         raise ValueError('Invalid rollout_episodes')
+    for key,high in (('num_envs',28),('torch_threads',28)):
+        if type(c.get(key,1)) is not int or not 1<=c.get(key,1)<=high:raise ValueError('Invalid '+key)
     from ..envs.belief import observation_config
     observation_config(c.get('observation'))
     return c
@@ -53,6 +57,7 @@ def read_budget(path, steps, smoke=False, level='main'):
 
 
 def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False, policy_factory=None):
+    run_started=time.perf_counter()
     import torch
     from .backend import AuthorBaseline, fingerprint
     c = dict(config)
@@ -64,8 +69,8 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
         protected = set(CALIBRATION_SEEDS + VALIDATION_SEEDS)
         if any(type(s) is not int or not 0 <= s < 2**32 or s in protected for s in seeds):
             raise ValueError('Invalid evaluation seed or overlap with calibration/validation')
-    random.seed(c['seed']); np.random.seed(c['seed']); torch.manual_seed(c['seed']); torch.set_num_threads(1)
-    adapter = Cage4Adapter(c['seed'], c['steps'], 'FiniteStateRedAgent', observation=c.get('observation'))
+    random.seed(c['seed']); np.random.seed(c['seed']); torch.manual_seed(c['seed']); torch.set_num_threads(c.get('torch_threads',1))
+    adapter = Cage4Adapter(c['seed'], c['steps'], 'FiniteStateRedAgent', observation=c.get('observation'), include_graph=policy_factory is not None)
     from CybORG import __file__ as cyborg_file
     reward_file = Path(cyborg_file).parent/'Shared'/'BlueRewardMachine.py'
     if hashlib.sha256(reward_file.read_bytes()).hexdigest() != budget_data['reward_source_sha256']:
@@ -79,9 +84,11 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
     # No private source paths are included in provenance.
     metadata = dict(runtime=runtime, mode=mode, algorithm=c['algorithm'], encoder=ENCODER, cost_version=COST_VERSION,
                     upstream=policy.provenance, safety_budget_rate=rate, safety_budget_level=c.get('budget_level', 'main'),
-                    protocol='cage4.paper-common-observation/2', smoke=smoke,
+                    protocol='cage4.paper-common-observation/3', smoke=smoke,
                     reward_semantics='official_team_return = mean of five shared Blue returns, all executed steps',
                     critic_information='own Blue observation' if c['algorithm']=='ippo' else 'concatenated five Blue observations; no Ground Truth',
+                    execution=dict(num_envs=c.get('num_envs',1),torch_threads=c.get('torch_threads',1),
+                                   sampler='synchronous complete episodes; frozen weights; episode-seeded RNG'),
                     parameter_sharing=False, evaluation_seeds=seeds or [],
                     budget_sha256=hashlib.sha256(Path(budget).read_bytes()).hexdigest())
     payload = None
@@ -95,6 +102,8 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
         policy.load(payload['policy'])
         metadata['checkpoint_sha256'] = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     eval_weights = {a: fingerprint(p.actor) for a,p in policy.policies.items()} if mode == 'evaluate' else None
+    if c.get('num_envs',1)>1 and policy_factory is not None:
+        raise ValueError('Custom policy factory currently requires num_envs: 1')
     writer = RunWriter(runs, c, metadata)
     atomic_json(writer.path/'observation-schema.json', adapter.observation_schema())
     atomic_json(writer.path/'spaces.json', {a:dict(observation_dim=len(x.observation), actions=len(x.mask)) for a,x in inputs.items()})
@@ -102,75 +111,91 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
     atomic_json(writer.path/'upstream-arguments.json', source_args)
     episode_seeds = seeds if mode == 'evaluate' else [100000 + c['seed']*100000 + i for i in range(c['episodes'])]
     rows = []; trained = []; last_optimizer_episode=0; total_transitions=0
+    from .rollouts import EpisodeCollector, RolloutPool
+    expected_steps=budget_data['calibration'][0]['steps'] if c['steps']==budget_data['configured_steps'] else c['steps']-1
+    batch_size=c.get('rollout_episodes',8) if mode=='train' else min(c.get('num_envs',1),len(episode_seeds))
+    workers=min(c.get('num_envs',1),batch_size,len(episode_seeds))
+    if workers>1 and policy_factory is not None:
+        raise ValueError('Custom policy factory currently requires num_envs: 1')
+    collector=EpisodeCollector(c,rate,expected_steps,policy,adapter)
+    started=run_started
+    def progress(ep,step,pid=None):
+        writer.status(episode=ep,step=step,phase='collecting',worker_pid=pid,
+                      completed_episodes=len(rows),total_transitions=total_transitions,
+                      elapsed_seconds=time.perf_counter()-started)
     try:
-        for episode, seed in enumerate(episode_seeds, 1):
-            if mode == 'evaluate':
-                random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
-            inputs = adapter.reset(seed); policy.begin_episode()
-            scores = {a: 0. for a in inputs}; costs = []; rewards_once = []
-            if c.get('record_replay', True): writer.record('frames', episode, 0, frame(adapter, episode, 0))
-            terminal = False
-            observation_stats={a:[] for a in inputs}
-            decision_counts={a:dict(high_risk_host_action=0,stale_high_risk_host_action=0) for a in inputs}
-            cumulative_cost=0.
-            expected_steps=budget_data['calibration'][0]['steps'] if c['steps']==budget_data['configured_steps'] else c['steps']-1
-            for step in range(1, c['steps']+1):
-                actions = policy.act(inputs, training=mode=='train', deterministic=c.get('deterministic_eval', True))
-                labels = {a: {'index': x, 'label': inputs[a].labels[x], 'legal_mask': True} for a,x in actions.items()}
-                for a,x in actions.items():
-                    stats=adapter.encoders[a].decision_diagnostics(inputs[a].labels[x])
-                    for k,v in stats.items():decision_counts[a][k]+=v
-                inputs, rewards, terminated, truncated = adapter.step(actions)
-                cost = measure(adapter.base); costs.append(cost)
-                cumulative_cost += cost['cost']
-                for a,e in adapter.encoders.items():observation_stats[a].append(e.diagnostics.copy())
-                decision_context=dict(cumulative_cost=cumulative_cost,recent_cost=cost['cost'],
-                                      nominal_budget=rate*expected_steps,
-                                      remaining_budget=float(np.clip(1-cumulative_cost/max(rate*expected_steps,1e-12),-1,1)),
-                                      information_scope='learner/researcher only; not actor input')
-                for a in scores: scores[a] += rewards[a]
-                rewards_once.append(float(np.mean(list(rewards.values()))))
-                terminal = not inputs or all(terminated.get(a,False) or truncated.get(a,False) for a in scores)
-                if mode == 'train': policy.observe(rewards, cost['cost'], terminal=terminal)
-                if c.get('record_replay', True):
-                    # All executed actions/observations replayed; full topology sparse.
-                    if step == 1 or terminal or step % c.get('snapshot_every', 50) == 0:
-                        data = frame(adapter, episode, step, labels)
-                    else:
-                        from ..recording.telemetry import safe, red_telemetry
-                        data = dict(blue=labels, blue_observations=safe(adapter.raw), red=red_telemetry(adapter.base))
-                    data.update(rewards=rewards, safety=cost, decision_context=decision_context, seed=seed)
-                    writer.record('frames', episode, step, data)
-                if step % 10 == 0: writer.status(episode=episode, step=step, seed=seed)
-                if terminal: break
-            if not terminal: raise RuntimeError('Rollout cut before true terminal; refusing zero-bootstrap update')
-            update_due = episode % c.get('rollout_episodes', 8) == 0 or episode == len(episode_seeds)
-            losses = policy.update(c['reward_scale']) if mode == 'train' and update_due else {}
-            total_transitions += step
-            if mode == 'train' and update_due: last_optimizer_episode=episode
-            summary = summarize(costs)
-            row = dict(episode_seed=seed, seed=c['seed'], steps=step, agents=scores, losses=losses,
-                       observation_diagnostics={a:{**{k:float(np.mean([s[k] for s in values])) for k in values[0]},
-                            **decision_counts[a], 'stale_state_action_rate':decision_counts[a]['stale_high_risk_host_action']/max(1,decision_counts[a]['high_risk_host_action'])}
-                            for a,values in observation_stats.items()},
-                       decision_context=decision_context, budget_usage=summary['mean_cost']/rate if rate else None,
-                       team_return=sum(scores.values()), official_team_return=sum(rewards_once),
-                       official_script_compat_return=sum(rewards_once[:-1]), safety=summary,
-                       safety_budget_rate=rate, budget_excess=summary['mean_cost']-rate,
-                       budget_violated=summary['mean_cost'] > rate, optimizer_update=mode=='train' and update_due,
-                       last_optimizer_episode=last_optimizer_episode, total_transitions=total_transitions)
-            writer.record('metrics', episode, step, row); rows.append(row)
-            writer.status(episode=episode, step=step, seed=seed)
-            if mode == 'train':
-                trained.append(seed)
-                if episode % c['checkpoint_every'] == 0 or episode == len(episode_seeds):
-                    save_checkpoint(writer.path/'checkpoints'/f'episode_{episode:06d}.pt',
-                                    dict(runtime=runtime, encoder=ENCODER, config=c, upstream=policy.provenance,
-                                         budget_sha256=metadata['budget_sha256'], training_episode_seeds=trained.copy(),
-                                         episode=episode, last_optimizer_episode=last_optimizer_episode,
-                                         total_transitions=total_transitions, policy=policy.checkpoint()))
-            print(json.dumps(dict(episode=episode, seed=seed, official_team_return=row['official_team_return'],
-                                  mean_cost=summary['mean_cost'], budget_rate=rate)), flush=True)
+      with (RolloutPool(workers,c,upstreams,rate,expected_steps) if workers>1 else nullcontext(None)) as pool:
+        if pool is not None:writer.status(worker_pids=pool.worker_pids,num_envs=workers)
+        start=0;pending_history=[];pending_episodes=0
+        while start<len(episode_seeds):
+            # Checkpoint boundaries split collection only; gradient batches stay
+            # fixed and pending transitions never enter a checkpoint/resume claim.
+            size=min(batch_size-pending_episodes,len(episode_seeds)-start)
+            if mode=='train':size=min(size,c['checkpoint_every']-start%c['checkpoint_every'])
+            jobs=[(i+1,episode_seeds[i]) for i in range(start,start+size)]
+            collection_start=time.perf_counter()
+            if pool is None:
+                results=[];batch_history=[]
+                for episode,seed in jobs:
+                    result=collector.collect(episode,seed,writer.path,mode=='train',lambda ep,st:progress(ep,st))
+                    results.append(result)
+                    batch_history.extend(result['history'])
+                pending_history.extend(batch_history)
+            else:
+                results=pool.collect(policy.rollout_state(),jobs,writer.path,mode=='train',progress)
+                pending_history.extend(transition for result in results for transition in result['history'])
+            collection_seconds=time.perf_counter()-collection_start
+            if mode=='train':pending_episodes+=len(results)
+            update_due=mode=='train' and (pending_episodes==batch_size or start+size==len(episode_seeds))
+            policy.history=pending_history
+            writer.status(phase='updating' if update_due else 'recording',episode=jobs[-1][0],step=results[-1]['row']['steps'])
+            gradient_batch_episodes=pending_episodes if update_due else 0
+            gradient_batch_transitions=len(pending_history) if update_due else 0
+            update_start=time.perf_counter()
+            losses=policy.update(c['reward_scale']) if update_due else {}
+            update_seconds=time.perf_counter()-update_start
+            if update_due:last_optimizer_episode=jobs[-1][0]
+            if update_due:pending_history=[];pending_episodes=0
+            batch_transitions=sum(result['row']['steps'] for result in results)
+            batch_perf=dict(collection_seconds=collection_seconds,update_seconds=update_seconds,
+                            environment_transitions=batch_transitions,collection_chunk_episodes=len(results),
+                            gradient_batch_episodes=gradient_batch_episodes,gradient_batch_transitions=gradient_batch_transitions,
+                            transitions_per_second=batch_transitions/max(collection_seconds+update_seconds,1e-9),
+                            workers=workers,torch_threads=c.get('torch_threads',1))
+            for index,result in enumerate(results):
+                episode=result['episode'];row=result['row'];step=row['steps']
+                total_transitions+=step
+                row.update(losses=losses if index==len(results)-1 else {},
+                           optimizer_update=update_due and index==len(results)-1,
+                           last_optimizer_episode=last_optimizer_episode if index==len(results)-1 else (rows[-1]['last_optimizer_episode'] if rows else 0),
+                           total_transitions=total_transitions,worker_timing=result['timing'],
+                           worker_pid=result['worker_pid'],batch_performance=batch_perf)
+                writer.record('metrics',episode,step,row);rows.append(row)
+                writer.status(episode=episode,step=step,seed=row['episode_seed'],phase='recording',
+                              completed_episodes=len(rows),total_transitions=total_transitions,
+                              transitions_per_second=total_transitions/max(time.perf_counter()-started,1e-9))
+                if mode=='train':
+                    trained.append(row['episode_seed'])
+                    if episode%c['checkpoint_every']==0 or episode==len(episode_seeds):
+                        # Pending transitions are not model updates. A checkpoint
+                        # at episode 50 can correctly contain the update at 48.
+                        cutoff=last_optimizer_episode
+                        seen=episode_seeds[:cutoff]
+                        save_checkpoint(writer.path/'checkpoints'/f'episode_{episode:06d}.pt',
+                                        dict(runtime=runtime,encoder=ENCODER,config=c,upstream=policy.provenance,
+                                             budget_sha256=metadata['budget_sha256'],training_episode_seeds=seen,
+                                             episode=episode,last_optimizer_episode=cutoff,
+                                             total_transitions=total_transitions,
+                                             policy=policy.checkpoint()))
+                print(json.dumps(dict(episode=episode,seed=row['episode_seed'],official_team_return=row['official_team_return'],
+                                      mean_cost=row['safety']['mean_cost'],budget_rate=rate,
+                                      batch_transitions_per_second=batch_perf['transitions_per_second'])),flush=True)
+            atomic_json(writer.path/'performance.json',dict(
+                completed_episodes=len(rows),total_transitions=total_transitions,
+                elapsed_seconds=time.perf_counter()-started,
+                overall_transitions_per_second=total_transitions/max(time.perf_counter()-started,1e-9),
+                last_batch=batch_perf,worker_pids=pool.worker_pids if pool is not None else []))
+            start+=size
         if mode == 'evaluate':
             if eval_weights != {a: fingerprint(p.actor) for a,p in policy.policies.items()}:
                 raise RuntimeError('Evaluation changed actor parameters')

@@ -25,7 +25,7 @@ on-policy 使用 MIT。MACPO 锁定版本的 LICENSE 含未解决的合并标记
 - 集中 critic 仅拼接 Blue 观测，不使用 Ground Truth。safe learner 收到一个共同团队 cost 标量，五个 cost critic 使用同一团队约束；不是五个不同的辖区预算。
 - 全部五策略、不共享参数、feedforward CPU、两层256 隐藏单元、`layer_N=1`（上游额外层数）、gamma=.99、GAE lambda=.95、PPO epoch=10、minibatch=1、Adam lr=5e-5、clip=.2、entropy=.001。MACPO 为作者 trust-region 单次更新，epoch 强制为 1；不能用 PPO epoch 伪装 MACPO 更新次数。
 - 全部 reward 乘 .01 进入训练，保存和评估仍为官方原始 reward；cost 每步在 [0,1]，不做 reward scaling。
-- 关闭 PopArt/ValueNorm、RNN、人工 time-limit bootstrap。每批8个完整回合更新，GAE在每个terminal截断，buffer 使用真实执行的 T，绝不填充未执行步。作者默认值和显式覆盖的最终参数写入 `upstream-arguments.json`。
+- 关闭 PopArt/ValueNorm、RNN、人工 time-limit bootstrap。每批16个完整回合更新，GAE在每个terminal截断，buffer 使用真实执行的 T，绝不填充未执行步。作者默认值和显式覆盖的最终参数写入 `upstream-arguments.json`。
 
 这是一套**控制共同输入的 CAGE4 比较协议**，不是声称逐项复现某篇 CAGE4 论文。尤其结构化编码、无 Ground Truth 的集中 critic、训练 batch 大小可能不同。论文应报告编码与信息权限；复现特定论文还需按该论文的代码/配置另建 profile。当前没有把 QMIX、H-MARL 或未核验的论文代码登记成已实现算法。
 
