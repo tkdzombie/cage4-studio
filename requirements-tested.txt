@@ -1,2 +1,0 @@
-# Compatibility path: validated original server runtime reference, not a full lock.
--r cage4-baselines/environments/requirements-server-reference.txt

@@ -1,89 +1,56 @@
-# CAGE4 Studio 0.4.0 · 独立科研工程
+# CAGE4 Studio
 
-研究项目决定算法，Server 读取实验，Client 连接网页。面向 macOS / Apple Silicon / Toolbox 远程 PyCharm；非官方 CAGE 工具，不声称训练收敛或达到挑战基准。
+独立算法研究项目 + 只读实验网页 + 本地 SSH 客户端。服务器已有环境可直接使用。
 
-| 部分 | 目录 | 职责 |
-|---|---|---|
-| cage4-baselines | `cage4-baselines/` | 环境适配、YAML、train/evaluate、作者来源 IPPO/MAPPO/HAPPO/MAPPO-L/MACPO、基础对照、插件注册 |
-| Studio Server | `server/` | 只读曲线、五 Agent 指标、真实接口拓扑、红队记录、Episode/Step 回放、对比 |
-| macOS Client | `client/` | 本地 SSH 转发与浏览器；不启动 PyCharm或服务器 |
-| 共享协议 | `protocol/` | cage4.run/1 原子文件格式、进程身份与状态 |
-| 运维 | `ops/` | 服务管理、研究入口、验收与打包 |
+## 开始训练
 
-已实查服务器旧环境和用户原 GitHub 仓库。迁移不覆盖 `$HOME/cage4-studio`；原数据、环境、CybORG 源码都保留。旧项目源码在 Git 历史与 `legacy/` 留存。没有替用户选定 LICENSE，见 [NOTICE](NOTICE.md)。
+在 Toolbox 的远程 PyCharm 中展开：
 
-先阅读 **[系统使用说明书](docs/USER_MANUAL_zh.md)**，查文件用 **[项目架构与放置规范](docs/PROJECT_STRUCTURE_zh.md)**，研究项目入口见 **[cage4-baselines/README](cage4-baselines/README.md)**。
-
-## PyCharm 最简单启动
-
-打开远程项目代码目录 `src/cage4_baselines/experiments/run_baseline.py`，顶部选算法和训练轮数，然后右键 **Run**，无需填写运行参数。自己的算法写在 `src/cage4_baselines/algorithms/my_algorithm.py`，入口选择 `my_algorithm` 即可。见 [三步运行说明](docs/START_SIMPLE_zh.md)。
-
-## 论文 Baseline 与业务安全约束
-
-新增 IPPO、MAPPO、HAPPO、MAPPO-Lagrangian、MACPO 五算法统一入口，锁定作者源码并保留差异说明。MACPO 是经测试的离散动作适配，不声称未修改的官方 CAGE4 版本。见 **[算法来源、安装与训练评估](docs/PAPER_BASELINES.md)**。
-
-结合官方阶段业务权重，以 Green 业务失败率定义 cost；20 个校准场景 + 20 个独立验证场景得到主预算 **24.748%**，严格/宽松档 **22.319% / 25.866%**。这是本工程研究协议，非官方阈值。见 **[cost/预算依据与实测数据](docs/SAFETY_COST_zh.md)**。
-
-## 先运行基础环境和 Baseline
-
-在远程研究项目中执行：
-
-```bash
-cd "$HOME/cage4-research/cage4-baselines"
-"$HOME/cage4-research-env/bin/python" -m cage4_baselines quickstart --runs "$HOME/cage4-experiments"
+```text
+cage4-research/cage4-baselines/src/cage4_baselines/
+├── experiments/run_baseline.py   # 右键 Run / Debug
+└── algorithms/my_algorithm.py    # 自己的网络、损失、更新逻辑
 ```
 
-真实完成环境检查、2 Episode Actor-Critic 训练、五个模型权重变化验证，以及 Actor-Critic / Random / Sleep 三 seed 评估。详见 [基础环境与 Baseline 跑通指南](docs/BASELINES_START_zh.md)。
+启动文件顶部只需设置：
 
-## 现有 Mac Studio 快速使用（远程终端）
-
-以下使用当前远程用户的 $HOME 路径；SSH 主机与用户须按自己的配置填写。公开源码不包含个人连接信息。
-
-```bash
-cd $HOME/cage4-research
-export CAGE4_PYTHON="$HOME/cage4-research-env/bin/python"
-bash ops/check.sh
-bash ops/research.sh train \
-  --config cage4-baselines/configs/train/actor_critic.yaml \
-  --runs $HOME/cage4-experiments
+```python
+ALGORITHM = "mappo"
+EPISODES = 2
+SEED = 101
 ```
 
-从命令输出找到本次 run 目录，再使用其 checkpoint。示例中的 `<RUN>` 必须换成真实目录名：
+现有算法：`ippo`、`mappo`、`happo`、`mappo_lagrangian`、`macpo`。跑自己的代码设置 `ALGORITHM = "my_algorithm"`；模板默认沿用 MAPPO，未修改时不算新算法。环境、配置、预算、实验保存路径自动定位，无需填写额外参数。终端在启动文件所在目录、使用现有服务器 Python 执行 `python run_baseline.py` 也可。
 
-```bash
-bash ops/research.sh evaluate \
-  --config cage4-baselines/configs/evaluate/actor_critic.yaml \
-  --checkpoint $HOME/cage4-experiments/<RUN>/checkpoints/episode_000030.pt \
-  --seeds 1001 1002 1003 \
-  --runs $HOME/cage4-experiments
-```
+打开现有 Client.app 查看记录；网页可先开，关闭不影响训练。第一个完整 Episode 结束后显示新曲线。
 
-独立评估 YAML 默认每 seed 运行 5 Episode，可复制配置修改。Random/Sleep 用对应 YAML，evaluate 时不传 checkpoint，使用相同 seeds、步长和红队进行对照。训练每个 seed 独立运行、独立目录；评估不更新参数。Ctrl+C 在步间安全停止，网页刷新或关闭不会停止研究进程。
+## 项目目录
 
-## 本地 MacBook Air
+| 目录 | 用途 |
+|---|---|
+| cage4-baselines/src/cage4_baselines/envs/ | CybORG 场景、step/reset、Blue观测编码 |
+| cage4-baselines/src/cage4_baselines/algorithms/ | 自定义算法与基础对照 |
+| cage4-baselines/src/cage4_baselines/experiments/ | 运行入口与基础实验流程 |
+| cage4-baselines/src/cage4_baselines/paper/ | 五算法作者核心接入、统一训练与评估 |
+| cage4-baselines/src/cage4_baselines/safety/ | 业务cost与预算校准 |
+| cage4-baselines/configs/ | 按用途组织的有效YAML与固定预算 |
+| cage4-baselines/environments/ | 依赖版本参考；实际环境放源码外 |
+| protocol/ | 原子实验文件协议、状态与PID身份 |
+| server/ | 只读图表、拓扑、动作/观测回放、实验比较 |
+| client/ | 本地 SSH 转发与网页入口 |
+| ops/ | 服务安装/停止/查询/回滚、验证与打包 |
+| tests/、cage4-baselines/tests/ | 协议、服务、环境与算法回归测试 |
 
-双击下载包中的 `CAGE4 Studio Client.app`，建立本地 18501 → Mac Studio 8501 隧道并打开网页。应用无 Python 运行依赖；需现有 SSH 密钥登录、已确认主机指纹、服务器服务已启动。个人应用未签名/公证，按 macOS 的“右键 → 打开”流程允许使用。首次 SSH 配置只能在确认服务器指纹后执行，客户端不会绕过主机校验。
+外部目录分别保存运行环境、锁定作者源码、实验数据和服务部署版本，不能当成临时文件删除。网页不执行训练，不读取checkpoint；Ground Truth和红队详细信息不输入Blue actor。
 
-客户端退出后 SSH 隧道继续运行，重开复用同一 ControlMaster。停止隧道用本地终端，在客户端 app 所在目录执行：
+## 使用和实验协议
 
-```bash
-bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
-```
+- [日常最简用法](docs/START_SIMPLE_zh.md)
+- [作者来源、超参数、正式训练与独立评估](docs/PAPER_BASELINES.md)
+- [业务cost、三档预算及独立校准依据](docs/SAFETY_COST_zh.md)
+- [安装、服务管理和回滚](docs/INSTALL_zh.md)
+- [实验记录格式与信息边界](docs/PROTOCOL.md)
 
-需要 TensorBoard 转发时用 `bash client/connect.sh start studio.example researcher 18502 16006`，网页从本地 18502 打开，TensorBoard 从本地 16006 打开。默认不转发 TensorBoard。不同参数建立不同隧道；对应 stop 必须使用同一组参数。客户端不自动打开 PyCharm，也不要求安装第二套 PyCharm。
+MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版本。默认业务cost预算24.748%，由20校准+20独立验证场景确定，是本项目研究协议。五算法已验证真实训练、权重保存及独立评估；未声称论文规模收敛/性能或理论安全保证，当前不支持断点续训。第三方许可与本仓库授权边界见 [NOTICE](NOTICE.md)。
 
-## Toolbox 远程 PyCharm
-
-本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程 Git 研究工作副本 `$HOME/cage4-research/cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
-
-日常训练直接右键运行 `src/cage4_baselines/experiments/run_baseline.py`；现有服务器 Conda Python 和独立研究解释器都可用。配置、预算和外部作者源码路径自动定位，无需手填模块参数。批量实验和独立评估继续使用文档中的 CLI。
-
-## 安装、升级、回滚、扩展
-
-- [本地/远程分步安装和回滚](docs/INSTALL_zh.md)
-- [日常研究与添加算法](docs/RESEARCH_zh.md)
-- [版本化文件协议与安全边界](docs/PROTOCOL.md)
-- [真实代码审查与迁移依据](docs/AUDIT.md)
-- [验证结果与兼容性限制](docs/VALIDATION.md)
-
-M3 Ultra 不等于 CUDA GPU。默认 CPU；MPS 只加速支持的 PyTorch 算子，不加速整个仿真。论文算法使用独立 `python -m cage4_baselines.paper` 入口；旧基础算法注册表仍拒绝未知名字，避免误用同名空实现。Actor-Critic 是 Monte Carlo REINFORCE + value baseline，不是 PPO。当前不支持断点续训；旧 BlueFlat checkpoint 不兼容新 observation encoder。完整训练、测试、可运行包与部署状态以验证文档为准。
+历史源码、旧入口、交付过程报告和重复说明不放在当前项目中；需要追溯时查Git历史。
