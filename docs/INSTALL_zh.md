@@ -37,7 +37,16 @@ $HOME/cage4-research-env/bin/python -m pip install \
   --no-deps --no-build-isolation -e protocol -e cage4-baselines
 ```
 
-仅安装两个本地 editable 包，不下载 PyTorch/Ray，不改变旧解释器。PyCharm 选这个新解释器。命令行便捷脚本默认用旧解释器和显式 PYTHONPATH；如需统一使用新解释器，在本次终端设置：
+为了长期研究，建议独立克隆工作副本，而不是修改 Server 固定版本目录。本次交付已完成以下步骤；新机器首次配置时执行：
+
+```bash
+git clone https://github.com/tkdzombie/cage4-studio.git "$HOME/cage4-research"
+cd "$HOME/cage4-research"
+"$HOME/cage4-research-env/bin/python" -m pip install \
+  --no-deps --no-build-isolation -e protocol -e cage4-baselines
+```
+
+研究解释器的 editable 包最终指向工作副本；Server 的 PYTHONPATH 固定指向发布目录，不随研究项目修改。只安装本地包，不下载 PyTorch/Ray，不改变旧解释器。PyCharm 打开 `$HOME/cage4-research/cage4-baselines`，选这个新解释器。命令行便捷脚本默认用旧解释器和显式 PYTHONPATH；如需统一使用新解释器，在本次终端设置：
 
 ```bash
 export CAGE4_PYTHON=$HOME/cage4-research-env/bin/python

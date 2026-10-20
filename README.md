@@ -17,7 +17,8 @@
 以下使用当前远程用户的 $HOME 路径；SSH 主机与用户须按自己的配置填写。公开源码不包含个人连接信息。
 
 ```bash
-cd $HOME/cage4-studio-releases/CAGE4_Studio_v0.3.0
+cd $HOME/cage4-research
+export CAGE4_PYTHON="$HOME/cage4-research-env/bin/python"
 bash ops/check.sh
 bash ops/research.sh train \
   --config cage4-baselines/configs/actor_critic.yaml \
@@ -50,7 +51,7 @@ bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
 
 ## Toolbox 远程 PyCharm
 
-本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程版本目录下的 `cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
+本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程 Git 研究工作副本 `$HOME/cage4-research/cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
 
 在 PyCharm 标记 `src` 为 Sources Root；`protocol` 是相邻的共享包。独立环境已安装这两个本地 editable 包。共享 `.run/Train Actor Critic.run.xml` 作为运行配置参考；若 JetBrains 版本没有自动识别，手动创建 Python module 配置：模块 `cage4_baselines.runner`，参数 `train --config configs/actor_critic.yaml --runs $HOME/cage4-experiments`，工作目录为项目根目录。无需修改 Client。
 
