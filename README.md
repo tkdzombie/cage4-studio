@@ -62,3 +62,5 @@ MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版�
 Mac Studio 多核参数、50回合checkpoint及可复现吞吐测试见 [多核训练](docs/PERFORMANCE_zh.md)。MAPPO支持同步多环境采样；自定义算法保留单进程断点调试。
 
 预算默认5%（严格3%/宽松10%）、return判断及官方训练/评估设置，见 [训练与预算说明](docs/TRAINING_TARGETS_zh.md)。
+
+有约束算法的托管队列、自动验证和停止方式见 [实验管理说明](docs/CONSTRAINED_EXPERIMENTS_zh.md)。队列运行时PyCharm入口会阻止重复启动；独立Run默认选择MAPPO-L。

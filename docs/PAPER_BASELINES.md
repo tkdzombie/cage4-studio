@@ -69,7 +69,7 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 
 配置修改建议复制到个人 profile，保留提交到论文的最终 YAML。训练 seed 使用 101/102/103/104/105，各跑一次；实际训练 episode seeds 采用独立范围 `100000 + seed*100000 + episode_index`。校准 41001–41020、验证 42001–42020、最终评估 53001–53100 分离；评估入口拒绝重叠校准 seed 或 checkpoint 内的训练 seed。
 
-评估默认每个显式 seed 一个 episode、动作取 mode，不修改策略；若改成随机评估，要在训练前将 deterministic_eval 设为 false，并在论文报告。正式比较应按相同环境交互预算、相同训练 seeds 和同一评估集合，报告跨训练 seed 的均值/标准差及 cost/超限率，不能把同一模型的 100 个测试场景当成 100 次独立训练。推荐起始训练预算每 seed 2000×499=998000 transitions；根据验证集曲线判断是否需延长，所有方法统一预算。
+评估每个显式seed一个episode，不修改策略。动作模式由训练配置记录：本轮有约束MACPO/MAPPO-L统一deterministic_eval=false，以随机策略作为主评估，并另报greedy结果；其他历史profile保留自身设置。新版独立评估入口可用--action-mode显式报告两种模式，不改checkpoint中的原始配置或放宽来源检查，模式写入manifest和evaluation.json。正式比较应按相同环境交互预算、相同训练 seeds 和同一评估集合，报告跨训练 seed 的均值/标准差及 cost/超限率，不能把同一模型的 100 个测试场景当成 100 次独立训练。推荐起始训练预算每 seed 2000×499=998000 transitions；根据验证集曲线判断是否需延长，所有方法统一预算。
 
 `--smoke` 仅允许缩短 horizon 做接口检查，manifest 会明确标记；20 步没有完整任务阶段，不可用于论文 reward/cost 比较。当前支持保存 actor、reward/cost critic、optimizers、乘子及配置供评估；**不支持断点续训**，未假装恢复 RNG/历史 buffer。
 
@@ -109,3 +109,5 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 记录配置的JSON科学计数法必须用json.loads读取，避免YAML 1.1将5e-05解析为字符串。直接模块CLI的--config适用于YAML；记录配置的评估统一使用上述脚本，不修改正在运行的策略源码或放宽来源校验。
 
 训练回合数、return口径与官方参考见 [TRAINING_TARGETS_zh.md](TRAINING_TARGETS_zh.md)。新训练保存`source/cage4_baselines/`，独立评估入口优先使用该次运行的源码快照；仍严格核验依赖版本、源码、配置和预算SHA，不允许用新预算评估旧权重并伪称原协议结果。快照是科研溯源数据，随整次实验按保留策略清理。
+
+用户授权的有约束算法托管计划、资源限制和阶段验收见 [CONSTRAINED_EXPERIMENTS_zh.md](CONSTRAINED_EXPERIMENTS_zh.md)。

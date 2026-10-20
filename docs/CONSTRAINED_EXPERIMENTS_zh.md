@@ -1,0 +1,45 @@
+# 有约束baseline实验管理
+
+用户已授权停止原MAPPO，自主调试、运行和管理有约束算法。本轮范围是当前实际实现的 **MACPO-Discrete、MAPPO-Lagrangian**；不重新训练IPPO/MAPPO/HAPPO，也不把自定义MAPPO模板冒充新的有约束算法。
+
+## 固定协议与验收
+
+- 环境、官方reward、Blue信息边界、cost定义保持锁定；主预算0.05，敏感性档0.03/0.10，不根据最终测试结果移动。
+- 500配置步，实际499次transition；256双隐藏层、16回合冻结策略批次、16环境进程、8模型线程。两算法顺序运行，避免重复占满服务器。
+- 每50回合保存，结束保存最后一次；不宣称支持断点续训。数据根目录仍按最近5次实验保留，先完成该模型评估再进入下一个任务。管理摘要另存，不在GitHub上传权重或原始实验数据。
+- 主要评估随机策略（对应受约束的随机策略目标），同时完整报告确定性greedy结果，不能根据哪个成绩好再选择主模式。训练config保持不变，评估模式另存manifest/evaluation，严格核验源码、依赖、配置和budget SHA。
+- 开发验证仅54001–54020；预算参考41001–41020、42001–42020；最终53001–53100不用于调参。smoke的短horizon结果不可与完整500步得分混用。
+- MACPO原论文和作者仓库的任务为Safe Multi-Agent MuJoCo，不存在可以直接照搬的MACPO官方CAGE4回报。CAGE4公开强参考约−100至−200，但来自其他方法、观测和wrapper，不是本实现的保证值。先以完整开发验证均值≥−500且平均cost≤0.05为阶段目标，再争取−300附近及更好的可比表现；目标不是宣称“论文复现已完成”的自动标签。
+- 达到阶段目标后仍需冻结实现/超参数，至少3个（正式建议5个）独立训练seed及100个最终评估场景，报告跨训练seed的统计、环境交互预算、成本与超限率。只达成本但reward差，或只达reward但成本超限，均不算目标达成。
+
+参考：[MACPO/MAPPO-L作者仓库](https://github.com/chauncygu/Multi-Agent-Constrained-Policy-Optimisation)、[CAGE4官方总结](https://ojs.aaai.org/index.php/AAAI/article/view/35158)。
+
+## 当前阶段与后续有限调参
+
+第一阶段每算法seed101训练2000回合；检查第200、1000、2000回合checkpoint，分别在相同20个开发场景以随机和greedy方式评估。中间checkpoint的评估在该次训练结束后执行，不干扰采样CPU预算。全部完成只标记`phase_complete`，由本聊天后续检查分析，不自动称为收敛。
+
+诊断记录包括实际策略KL（MACPO拒绝候选步后的真实KL，而非仅候选KL）、actor是否更新、成本critic前后MSE、平均累计成本/预算、MAPPO-L乘子变化、采样与更新时间。MAPPO-L公开可配置`lamda_lagr`、`lagrangian_coef_rate`；MACPO公开`kl_threshold`、`fraction_coef`、`ls_step`，由验证与来源记录核验。作者cost optimizer共用`critic_lr`，不提供不起作用的独立cost_lr旋钮。MACPO每批实际一次CPO更新，YAML明确ppo_epoch=1。
+
+先判断数值和约束路径，再根据上述日志作单变量对照。MACPO若实际KL远小于阈值且更新过小，可将作者默认fraction_coef=0.1与1.0对照，仍保留KL/成本回溯接受检查；MAPPO-L可比较dual rate=0.0005与0.005。每种方法每次只改变一个因素，每个候选先用相同2000回合与seed101，最多再做6次候选实验；不得无限盲跑。选定后在相同seed102/103复核，再决定统一扩大到10000回合。任何更改观测、成本目标或训练机制必须单独命名、保存新源码并重新训练，不能将变体成绩偷换为原版算法复现。
+
+若2000回合仍持续改善，不能仅因未达到−500就判算法失败；若训练和验证长期平坦，先检查KL/critic/乘子/观测与动作分布。多轮仍无改善、单任务超过6小时、或磁盘不足时保存证据并报告，不无限消耗资源。当前模型checkpoint较大；不自动启动5万回合任务，先按实测存储需求安排阶段预算。
+
+## 服务器上的管理程序
+
+研究项目的 `ops/constrained_campaign.py` 负责有界顺序队列，独立于本地网页客户端。启动前拒绝已有活动训练和重复管理器；冻结算法源码、协议模块、配置与预算；进程身份使用PID+启动时间+命令核对。状态原子写入control目录下的`state.json`，日志按任务拆分。遇到异常保留日志，继续检查另一种算法；遇到用户STOP、资源阈值则停止整个队列。管理程序不会自行宣称达标或改预算。
+
+远程Mac Studio终端，首次启动示例（已有队列在运行时不要再执行）：
+
+```bash
+cd "$HOME/cage4-research"
+export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
+"$HOME/cage4-studio/.conda-env/bin/python" ops/constrained_campaign.py \
+  --control "$HOME/cage4-experiment-control/constrained-initial" \
+  --algorithms macpo mappo_lagrangian --seeds 101 --episodes 2000
+```
+
+control目录必须是新的；不会覆盖旧状态或伪装resume。私有control路径在部署时记录，本聊天通过SSH查看；公开仓库不包含用户名或IP。停止方式是在对应control目录创建`STOP`文件，管理程序向核对身份的训练父进程发送SIGINT并等待其清理worker；超过120秒才终止该任务所属进程组。正常停止保留已有checkpoint，不自动清空实验。
+
+默认保持30GiB磁盘余量，每个训练/评估子任务最长6小时。评估原始回放只临时生成，逐seed回报、成本均值及超限率汇总保存后清理；正式训练仍保存完整回放。原始训练run按既有最近5次策略删除，管理摘要和源码版本便于追溯此前比较，但不能冒称已删除的旧checkpoint仍可下载。
+
+当前聊天已设置每20分钟的定期跟进：检查队列、进程、数值、资源及结果，必要时修复并推进下一阶段，只在有意义的变化时通知。服务器队列不依赖本地客户端持续开启；本地定期跟进需要Codex和电脑保持运行，离线期间不承诺继续进行人工式代码诊断。用户停止授权后不得自动重启。

@@ -26,6 +26,7 @@ def main():
     p.add_argument('--upstreams',type=Path,default=Path.home()/'cage4-upstreams')
     p.add_argument('--budget',type=Path)
     p.add_argument('--smoke',action='store_true')
+    p.add_argument('--action-mode',choices=('stochastic','greedy'))
     a=p.parse_args()
     snapshot=a.run.resolve()/'source'
     if (snapshot/'cage4_baselines'/'paper'/'__main__.py').is_file():
@@ -34,7 +35,8 @@ def main():
     config=read_training_config(a.run)
     checkpoint=a.run/'checkpoints'/f'episode_{a.episode:06d}.pt'
     budget=a.budget or a.run/'budget.json'
+    options={} if a.action_mode is None else dict(evaluation_action_mode=a.action_mode)
     print(run(config,a.runs,a.upstreams,budget,mode='evaluate',checkpoint=checkpoint,
-              seeds=a.seeds,smoke=a.smoke),flush=True)
+              seeds=a.seeds,smoke=a.smoke,**options),flush=True)
 
 if __name__=='__main__':main()

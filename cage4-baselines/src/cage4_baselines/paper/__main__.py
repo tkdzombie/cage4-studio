@@ -46,11 +46,19 @@ def load_config(path):
     return c
 
 
-def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False, policy_factory=None):
+def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False, policy_factory=None,
+        evaluation_action_mode=None):
     run_started=time.perf_counter()
     import torch
     from .backend import AuthorBaseline, fingerprint
     c = dict(config)
+    if evaluation_action_mode not in (None,'stochastic','greedy'):
+        raise ValueError('Invalid evaluation action mode')
+    if evaluation_action_mode is not None and mode!='evaluate':
+        raise ValueError('Evaluation action mode is evaluation only')
+    acting_config = dict(c)
+    if evaluation_action_mode is not None:
+        acting_config['deterministic_eval'] = evaluation_action_mode=='greedy'
     budget_data, rate = read_budget(budget, c['steps'], smoke, c.get('budget_level', 'main'))
     if mode == 'evaluate' and checkpoint is None: raise ValueError('Evaluation requires a checkpoint')
     if mode == 'train' and checkpoint: raise ValueError('Resume is not implemented; checkpoint is evaluation only')
@@ -80,6 +88,7 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
                     execution=dict(num_envs=c.get('num_envs',1),torch_threads=c.get('torch_threads',1),
                                    sampler='synchronous complete episodes; frozen weights; episode-seeded RNG'),
                     parameter_sharing=False, evaluation_seeds=seeds or [],
+                    evaluation_action_mode=('greedy' if acting_config.get('deterministic_eval',True) else 'stochastic') if mode=='evaluate' else None,
                     budget_sha256=hashlib.sha256(Path(budget).read_bytes()).hexdigest())
     payload = None
     if checkpoint:
@@ -111,14 +120,14 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
     workers=min(c.get('num_envs',1),batch_size,len(episode_seeds))
     if workers>1 and policy_factory is not None:
         raise ValueError('Custom policy factory currently requires num_envs: 1')
-    collector=EpisodeCollector(c,rate,expected_steps,policy,adapter)
+    collector=EpisodeCollector(acting_config,rate,expected_steps,policy,adapter)
     started=run_started
     def progress(ep,step,pid=None):
         writer.status(episode=ep,step=step,phase='collecting',worker_pid=pid,
                       completed_episodes=len(rows),total_transitions=total_transitions,
                       elapsed_seconds=time.perf_counter()-started)
     try:
-      with (RolloutPool(workers,c,upstreams,rate,expected_steps) if workers>1 else nullcontext(None)) as pool:
+      with (RolloutPool(workers,acting_config,upstreams,rate,expected_steps) if workers>1 else nullcontext(None)) as pool:
         if pool is not None:writer.status(worker_pids=pool.worker_pids,num_envs=workers)
         start=0;pending_history=[];pending_episodes=0
         while start<len(episode_seeds):
@@ -194,11 +203,15 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
             if eval_weights != {a: fingerprint(p.actor) for a,p in policy.policies.items()}:
                 raise RuntimeError('Evaluation changed actor parameters')
             scores = [r['official_team_return'] for r in rows]
+            cost_rates = [r['safety']['mean_cost'] for r in rows]
             atomic_json(writer.path/'evaluation.json', dict(
+                action_mode=metadata['evaluation_action_mode'],
                 metric='official_team_return', evaluation_seeds=episode_seeds,
                 by_seed={str(r['episode_seed']): r['official_team_return'] for r in rows},
+                by_seed_cost={str(r['episode_seed']): r['safety']['mean_cost'] for r in rows},
                 mean=float(np.mean(scores)), sample_std=float(np.std(scores, ddof=1)) if len(scores)>1 else None,
-                n_seeds=len(scores), mean_cost=float(np.mean([r['safety']['mean_cost'] for r in rows])),
+                n_seeds=len(scores), mean_cost=float(np.mean(cost_rates)),
+                cost_sample_std=float(np.std(cost_rates,ddof=1)) if len(scores)>1 else None,
                 violation_fraction=float(np.mean([r['budget_violated'] for r in rows])), complete=True))
         writer.finish('finished')
     except KeyboardInterrupt:

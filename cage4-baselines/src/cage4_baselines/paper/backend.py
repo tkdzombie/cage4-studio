@@ -40,18 +40,22 @@ class AuthorBaseline:
                          clip_param=.2, entropy_coef=.001, use_linear_lr_decay=False,
                          episode_length=config['steps'], safety_bound=budget_rate*config['steps'])
         allowed = {'hidden_size', 'ppo_epoch', 'lr', 'critic_lr', 'entropy_coef', 'clip_param', 'gamma', 'gae_lambda', 'layer_N'}
+        if self.name == 'macpo':
+            allowed.update(('kl_threshold', 'fraction_coef', 'ls_step'))
+        elif self.name == 'mappo_lagrangian':
+            allowed.update(('lamda_lagr', 'lagrangian_coef_rate'))
         user = config.get('hyperparameters', {})
         if set(user) - allowed:
             raise ValueError(f'Unsupported hyperparameters: {set(user)-allowed}')
         for key,value in user.items():
-            if key in ('hidden_size','ppo_epoch','layer_N'):
-                high = 1024 if key=='hidden_size' else (100 if key=='ppo_epoch' else 8)
+            if key in ('hidden_size','ppo_epoch','layer_N','ls_step'):
+                high = 1024 if key=='hidden_size' else (100 if key in ('ppo_epoch','ls_step') else 8)
                 low = 0 if key=='layer_N' else 1
                 if type(value) is not int or not low<=value<=high: raise ValueError('Invalid '+key)
             else:
                 if type(value) not in (int,float) or not np.isfinite(value): raise ValueError('Invalid '+key)
-                low = 0 if key=='entropy_coef' else 1e-10
-                high = .1 if key in ('lr','critic_lr') else 1.
+                low = 0 if key in ('entropy_coef','lamda_lagr') else 1e-10
+                high = .1 if key in ('lr','critic_lr','lagrangian_coef_rate') else (100. if key=='lamda_lagr' else 1.)
                 if not low<=value<=high: raise ValueError('Invalid '+key)
         overrides.update(user)
         if self.name == 'macpo':
@@ -174,6 +178,14 @@ class AuthorBaseline:
             trainer = self.trainers[a]; policy = self.policies[a]; b = buffers[a]
             before = {key: fingerprint(getattr(policy, key)) for key in ('actor', 'critic')}
             if self.safe: before['cost_critic'] = fingerprint(policy.cost_critic)
+            if self.safe:
+                from .discrete_macpo import distribution
+                with torch.no_grad():
+                    old_dist = distribution(policy.actor,b.obs[:-1,0],b.available_actions[:-1,0])
+                    old_dist = torch.distributions.Categorical(logits=old_dist.logits.detach().clone())
+                    previous_cost = policy.get_cost_values(b.share_obs[:-1,0],b.rnn_states_cost[:-1,0],b.masks[:-1,0])
+                    cost_mse_before = float(((previous_cost-torch.from_numpy(b.cost_returns[:-1,0]))**2).mean())
+                lambda_before = float(trainer.lamda_lagr) if hasattr(trainer,'lamda_lagr') else None
             if self.sequential:
                 b.update_factor(factor); old_logp = self.logp(a, b)
             trainer.prep_training()
@@ -200,7 +212,16 @@ class AuthorBaseline:
                     pred = policy.get_cost_values(b.share_obs[:-1, 0], zero, b.masks[:-1, 0])
                     values['cost_value_mse_after_update'] = float(((pred-torch.from_numpy(b.cost_returns[:-1, 0]))**2).mean())
                 values['budget_episode'] = self.rate*T/episodes
+                values['batch_mean_episode_cost'] = sum(x[2] for x in self.history)/episodes
+                values['batch_mean_cost_rate'] = sum(x[2] for x in self.history)/T
+                values['cost_value_mse_before_update'] = cost_mse_before
+                with torch.no_grad():
+                    new_dist = distribution(policy.actor,b.obs[:-1,0],b.available_actions[:-1,0])
+                    actual_kl = float(torch.distributions.kl_divergence(old_dist,new_dist).mean())
+                if not np.isfinite(actual_kl):raise FloatingPointError('Nonfinite actual policy KL')
+                values['actual_policy_kl'] = actual_kl
                 if hasattr(trainer, 'lamda_lagr'): values['lagrange_multiplier'] = float(trainer.lamda_lagr)
+                if lambda_before is not None:values['lagrange_multiplier_before_update'] = lambda_before
             metrics[a] = values
         self.history = []
         return metrics

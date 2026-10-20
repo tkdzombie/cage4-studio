@@ -6,7 +6,7 @@ import sys
 sys.dont_write_bytecode = True
 
 # ===== 日常只改这三项，然后右键运行本文件 =====
-ALGORITHM = "mappo"  # ippo / mappo / happo / mappo_lagrangian / macpo / my_algorithm
+ALGORITHM = "mappo_lagrangian"  # ippo / mappo / happo / mappo_lagrangian / macpo / my_algorithm
 EPISODES = None     # None 使用 YAML 的正式训练回合数；调试时可填整数
 SEED = 101
 
@@ -17,6 +17,14 @@ sys.path[:0] = [str(PROJECT / "src"), str(PROJECT.parent / "protocol")]
 
 
 def main():
+    # A managed queue already owns the server's training resources.
+    import fcntl
+    lock = Path.home()/"cage4-experiment-control"/".constrained.lock"
+    if lock.exists():
+        with lock.open('a') as handle:
+            try:fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise RuntimeError("服务器已有托管实验在运行，请先停止托管队列，再用 PyCharm 启动训练。")
     from cage4_baselines.paper import ALGORITHMS
     from cage4_baselines.paper.__main__ import load_config, run
     if ALGORITHM not in (*ALGORITHMS, "my_algorithm"):
