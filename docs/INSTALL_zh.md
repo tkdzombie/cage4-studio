@@ -110,3 +110,5 @@ cd CAGE4_Studio_v0.4.0
 安装器先检查运行依赖，自动备份现有 plist，再切换服务；失败自动还原。记录它输出的 Backup 路径；rollback 命令仍如上。只更换0.4 Server 能增加成本曲线/回报口径选择；不改变 TensorBoard、实验数据或训练算法。研究解释器若 editable 指向现有 Git 工作副本，更新 Git 后即可使用源码；若需要刷新包版本元数据，在该独立解释器中执行 `python -m pip install --no-deps --no-build-isolation -e protocol -e cage4-baselines`。不要在原始部署环境里卸载研究依赖。
 
 本地客户端建议安装在 `~/Applications/CAGE4 Studio Client.app`，不要放在临时解压/交付目录中。当前原生启动程序使用本地 ad-hoc 签名；连接设置仅存在生成的 App 中。默认网页地址是 `http://127.0.0.1:18501`，127.0.0.1本身不代表具体服务，端口必须正确。网页按实验真实开始时间排列，最新训练优先。
+
+网页默认只显示最近一次运行，并在检测到新运行后自动切换；历史数据仍保存在实验目录。需要恢复历史对比时，由服务配置设置 `CAGE4_SHOW_HISTORY=1`。
