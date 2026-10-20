@@ -1,8 +1,8 @@
 import unittest
 try:
  import numpy as np
- from cage4_baselines.adapter import PolicyInput
- from cage4_baselines.observations import encode
+ from cage4_baselines.core.types import PolicyInput
+ from cage4_baselines.envs.observations import encode
  from cage4_baselines.algorithms import create
  HAS_NUMPY=True
 except ImportError:HAS_NUMPY=False

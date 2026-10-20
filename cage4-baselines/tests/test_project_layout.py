@@ -1,5 +1,4 @@
 import ast
-import importlib
 from pathlib import Path
 import tempfile
 import unittest
@@ -34,13 +33,6 @@ class ProjectContractTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as folder:
    p=Path(folder)/'bad.yaml';p.write_text('learning_rate_typo: 0.01\n')
    with self.assertRaises(ValueError):load(p)
- def test_legacy_imports_share_the_new_implementations(self):
-  pairs=[('adapter','envs.adapter','Cage4Adapter'),('adapter','core.types','PolicyInput'),
-         ('runner','experiments.runner','run'),('engine','envs.factory','create_env'),
-         ('observations','envs.observations','encode'),('telemetry','recording.telemetry','frame')]
-  for old,new,symbol in pairs:
-   self.assertIs(getattr(importlib.import_module('cage4_baselines.'+old),symbol),
-                 getattr(importlib.import_module('cage4_baselines.'+new),symbol))
  def test_algorithms_do_not_import_simulation_or_telemetry(self):
   package=ROOT/'src/cage4_baselines/algorithms'
   for path in package.glob('*.py'):

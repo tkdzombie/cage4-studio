@@ -14,4 +14,4 @@
 
 requirements-server-reference.txt 记录原环境 setuptools 80.9.0；当前独立研究环境的 setuptools 为 79.0.1，两者均经过实机验证。不要为形式上对齐参考文件而重装工作的环境。实际版本随 run 一起记录。空白机器的依赖安装与 MPS 支持仍需独立验证。
 
-旧根目录 requirements-legacy.txt 是历史安装约束，根目录 requirements-tested.txt 只是转向本目录的兼容入口。新增依赖应先修改研究包 pyproject.toml，验证后再更新参考说明；不要在多个 requirements 文件中各自维护不同的“唯一真相”。
+依赖只在 pyproject.toml 声明，并在本目录记录已验证版本；根目录的历史约束与转发副本已删除。新增依赖验证后同步更新本目录说明。

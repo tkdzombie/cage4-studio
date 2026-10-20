@@ -88,7 +88,7 @@ $HOME/cage4-studio/.conda-env/bin/python ops/service.py rollback \
 
 ## 从空白环境重建
 
-这次交付针对已运行的 Mac Studio，不带 Conda、PyTorch 或 CybORG 二进制，不自动下载它们。空白机器需要 Python 3.10、上游固定 commit、macOS arm64 对应 wheel。`requirements-legacy.txt` 是原始安装约束，仅供溯源；与实际已运行环境不完全一致，不要为了“对齐”而直接重装。`requirements-tested.txt` 是本次关键版本快照，并非完整可重现 lock。
+这次交付针对已运行的 Mac Studio，不带 Conda、PyTorch 或 CybORG 二进制，不自动下载它们。空白机器需要 Python 3.10、上游固定 commit、macOS arm64 对应 wheel。关键版本参考统一见 `cage4-baselines/environments/requirements-server-reference.txt`；它并非完整 lock，不要为了形式上的版本对齐重装现有环境。
 
 如必须重建，在新环境中按关键版本安装，再 clone 上游 `https://github.com/cage-challenge/cage-challenge-4.git`、checkout `8c3c50ca54b176c2de199847944e8dcc035497e3`，使用 `pip install --no-deps -e <源码目录>`。若仍无法 import，显式将源码目录加入该新解释器的 .pth（不要改其他环境）。接着运行 ops/check.sh 与 ops/validate_simulator.py。不要使用已失效的 Miniforge checksum 下载 URL，不把 Ray 2.40 与 gymnasium 0.28.1 混装。空白安装流程未做第二台机器验收，不能视为一键支持所有平台。
 
