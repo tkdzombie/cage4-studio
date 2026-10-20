@@ -20,7 +20,7 @@ Random/Sleep用于环境诊断；Monte Carlo Actor-Critic用于教学/消融；m
 
 - **策略梯度**：真实on-policy采样、旧log probability、合法动作mask、GAE、PPO clipping和作者optimizer；未使用随机动作假装训练。
 - **多步动作**：CybORG会忽略执行中新增选择，现在IN_PROGRESS只允许Sleep；不把忽略的决策作为有效策略选择。
-- **批次**：8个真实完整episode收集后更新；同批未更新策略。每个terminal将GAE递推截断，不让第二回合reward泄漏到第一回合。最后不满批次使用实际数据，不填充虚假步。
+- **批次**：16个真实完整episode收集后更新；同批未更新策略。每个terminal将GAE递推截断，不让第二回合reward泄漏到第一回合。最后不满批次使用实际数据，不填充虚假步。
 - **网络**：作者MLP先创建第一隐藏层，再追加layer_N层，因此正式两层256使用layer_N=1。没有把上游layer_N=2误称“两层”。默认lr5e-5、PPO10轮是共同起始profile，不是已调优最优参数。
 - **CTDE**：IPPO critic只用自身，其他方法集中critic拼接5个Blue输入；actor只用自身。无全局感染真值，不向actor传Green业务明细。
 - **顺序方法**：HAPPO、MACPO、MAPPO-L按作者separated runner方式，更新一名agent后累计联合importance factor。
@@ -72,3 +72,5 @@ PY="$HOME/cage4-research-env/bin/python"
 当前Sleep校准预算的统计可行性已验证，但尚未证明它对训练后的各方法都形成有效约束。正式研究应在独立验证场景检查预算是否过松/不可行并冻结预算设计，报告三档敏感性，避免在最终测试集上按结果挑预算。
 
 来源校验排除只设置已保存参数的run_baseline.py、未使用的自定义模板及验收代码；否则仅切换ALGORITHM就会误拒绝此前模型评估。自定义方法仍由其独立extension SHA校验，实际观测/算法/训练运行时源码变化仍拒绝旧checkpoint。此边界另有两项回归测试。
+
+多核版本使用同步冻结权重的环境进程，统一梯度批次改为16回合；50回合checkpoint边界不改变梯度批次大小。新增逐步串行/spawn轨迹、采样随机流隔离、worker异常清理和checkpoint跨批次测试。初版8回合测试属于历史验证，不能当作新批次的性能曲线。详见PERFORMANCE_zh.md。

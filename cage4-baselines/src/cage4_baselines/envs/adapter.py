@@ -11,8 +11,9 @@ from ..core.types import PolicyInput
 
 
 class Cage4Adapter:
-    def __init__(self, seed=7629, steps=100, red='FiniteStateRedAgent', observation=None):
+    def __init__(self, seed=7629, steps=100, red='FiniteStateRedAgent', observation=None, include_graph=True):
         from CybORG.Agents.Wrappers import BlueFixedActionWrapper
+        self.include_graph = include_graph
         self.seed = self._seed(seed)
         if type(steps) is not int or not 10 <= steps <= 1000:
             raise ValueError('steps must be an integer from 10 to 1000')
@@ -50,8 +51,8 @@ class Cage4Adapter:
                 mask[labels.index('Sleep')] = True
             encoder = self.encoders[agent]
             vector = encoder.encode(observation, self.step_count)
-            graph = encoder.graph()
-            graph['action_mask'] = mask.copy()
+            graph = encoder.graph() if self.include_graph else None
+            if graph is not None: graph['action_mask'] = mask.copy()
             result[agent] = PolicyInput(vector, mask, labels, graph)
         self.raw = raw
         self.current = result

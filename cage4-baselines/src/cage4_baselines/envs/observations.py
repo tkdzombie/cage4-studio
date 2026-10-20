@@ -27,6 +27,7 @@ class StructuredObservation:
         self.horizon = horizon
         self.agent_index = agent_index
         self.config = observation_config(config)
+        self._types = [('_server_host_' in h, '_user_host_' in h, '_server_host_' not in h and '_user_host_' not in h) for h in self.hosts]
         self.fields = BASE_FIELDS + ('server','user','other')
         self.fields += tuple('observed/'+c for c in CHANNELS)
         self.fields += tuple('age_linear/'+c for c in CHANNELS)
@@ -121,7 +122,7 @@ class StructuredObservation:
                 linear=[0.]*4;logarithmic=[0.]*4
                 base=base[:9]+(0.,0.)+base[11:]
             if mode != 'belief': confidence=[0.]*4
-            types = ('_server_host_' in host, '_user_host_' in host, '_server_host_' not in host and '_user_host_' not in host)
+            types = self._types[i]
             history = [h['action']==c for c in self.commands]
             history += [0. if mode in ('current','persistent') else age(h['action_step']), h['action_success'], h['action_step'] is not None,
                         h['ever_analyse'],h['ever_restore'],h['ever_remove']]

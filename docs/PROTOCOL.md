@@ -1,6 +1,6 @@
 # 文件协议 cage4.run/1
 
-每个实验只有一个写者。研究项目创建唯一目录，观测台只读。根目录由命令行 --runs 指定，服务器的 CAGE4_RUN_ROOTS 用 macOS 的冒号分隔新旧根目录。不要把实验目录放进源码版本目录或 Git。
+每个实验有一个主写者维护状态、指标和权重；并行采样进程只写入分配给自己的独占episode帧目录。研究项目创建唯一目录，观测台只读。根目录由命令行 --runs 指定，服务器的 CAGE4_RUN_ROOTS 用 macOS 的冒号分隔新旧根目录。不要把实验目录放进源码版本目录或 Git。
 
 ```
 <runs>/<UTC timestamp>_<uuid>/
@@ -36,6 +36,15 @@ checkpoint 仅在可信研究命令行加载，使用 torch.load(weights_only=Tr
 
 ## 0.4.0 向后兼容研究字段
 
-仍使用 `cage4.run/1` 原子文件 envelope，manifest 新增 protocol=`cage4.paper-common-observation/2`、upstream commit/hash、cost_version、safety_budget_rate/level、critic_information、parameter_sharing 与 smoke 标记；config/budget/upstream-arguments 独立保存。metrics 添加 official_team_return（团队 reward 一次）、official_script_compat_return（匹配官方脚本终止步排除顺序）、safety（mean/sum、请求加权失败率、覆盖）、预算和超限量；原 team_return 保留。每个训练 agent 的 losses 保存作者字段及展示别名、模型实际权重是否改变。MACPO 上游错误的 cost_loss 诊断被省略，另写更新后 cost critic MSE。frames 新增 safety，每个实际步写入一次。详情见 PAPER_BASELINES.md / SAFETY_COST_zh.md。旧 Server 能读取 envelope，但0.4 UI 才区分这些回报口径并展示 cost。
+仍使用 `cage4.run/1` 原子文件 envelope，manifest 新增 protocol=`cage4.paper-common-observation/3`、upstream commit/hash、cost_version、safety_budget_rate/level、critic_information、parameter_sharing 与 smoke 标记；config/budget/upstream-arguments 独立保存。metrics 添加 official_team_return（团队 reward 一次）、official_script_compat_return（匹配官方脚本终止步排除顺序）、safety（mean/sum、请求加权失败率、覆盖）、预算和超限量；原 team_return 保留。每个训练 agent 的 losses 保存作者字段及展示别名、模型实际权重是否改变。MACPO 上游错误的 cost_loss 诊断被省略，另写更新后 cost critic MSE。frames 新增 safety，每个实际步写入一次。详情见 PAPER_BASELINES.md / SAFETY_COST_zh.md。旧 Server 能读取 envelope，但0.4 UI 才区分这些回报口径并展示 cost。
 
 RunWriter在创建及结束运行时按started_at保留最近5次，永久删除较早目录及权重；活跃/未验证写入者受保护，清理加目录锁，详见OBSERVATIONS_zh.md。
+
+
+## 同步并行采样（v3）
+
+主进程保存PID/identity、worker_pids和phase；每个worker独立spawn，不使用macOS不安全的fork。一个梯度批次内所有worker使用同一份冻结actor/critic，回合按编号排序后拼接，terminal mask隔离各回合；没有异步旧策略数据，也没有多套独立学习器。按episode seed隔离Python/NumPy/Torch采样随机数，采样不推进主进程的优化器随机流。
+
+metrics新增worker_timing和batch_performance，performance.json记录墙钟、环境transition/s及worker PID。50回合checkpoint边界可以拆分采样工作块，但不缩小16回合梯度批次；checkpoint记录真实last_optimizer_episode与已用于更新的training_episode_seeds。例如episode50的权重可能仅更新到48，不能冒称已消费待更新的2回合；仍不支持断点续训。
+
+每个帧仍使用原子JSON写入，worker不写全局status/metrics/checkpoints。主进程收到worker异常后标记error并清理子进程；SIGINT停止时清理当前spawn子进程。父进程异常消失时，worker在进度检查处退出，避免继续训练或写入孤儿记录。

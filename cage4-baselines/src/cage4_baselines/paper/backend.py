@@ -205,6 +205,18 @@ class AuthorBaseline:
         self.history = []
         return metrics
 
+    def rollout_state(self):
+        """Frozen CPU arrays for rollout actors/critics; no optimizer state."""
+        modules = ('actor','critic','cost_critic') if self.safe else ('actor','critic')
+        return {a:{key:{n:array(v).copy() for n,v in getattr(p,key).state_dict().items()}
+                   for key in modules} for a,p in self.policies.items()}
+
+    def load_rollout_state(self, state):
+        for a,modules in state.items():
+            for key,values in modules.items():
+                getattr(self.policies[a],key).load_state_dict({n:torch.from_numpy(v) for n,v in values.items()})
+        self.history=[];self.pending=None
+
     def checkpoint(self):
         result = {}
         for a, policy in self.policies.items():

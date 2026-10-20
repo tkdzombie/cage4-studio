@@ -3,10 +3,10 @@ algorithm: mappo_lagrangian
 seed: 101
 episodes: 2000
 steps: 500
-rollout_episodes: 8
+rollout_episodes: 16
 reward_scale: 0.01
 budget_level: main
-checkpoint_every: 100
+checkpoint_every: 50
 record_replay: true
 snapshot_every: 50
 deterministic_eval: true
