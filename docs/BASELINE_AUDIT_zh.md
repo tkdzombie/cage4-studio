@@ -74,3 +74,9 @@ PY="$HOME/cage4-research-env/bin/python"
 来源校验排除只设置已保存参数的run_baseline.py、未使用的自定义模板及验收代码；否则仅切换ALGORITHM就会误拒绝此前模型评估。自定义方法仍由其独立extension SHA校验，实际观测/算法/训练运行时源码变化仍拒绝旧checkpoint。此边界另有两项回归测试。
 
 多核版本使用同步冻结权重的环境进程，统一梯度批次改为16回合；50回合checkpoint边界不改变梯度批次大小。新增逐步串行/spawn轨迹、采样随机流隔离、worker异常清理和checkpoint跨批次测试。初版8回合测试属于历史验证，不能当作新批次的性能曲线。详见PERFORMANCE_zh.md。
+
+## 2026-10-21：MAPPO-L离散熵梯度修正
+
+作者MAPPO-L主要面向连续动作，离散分支的entropy形状为(N,)，active_masks为(N,1)，直接相乘广播为(N,N)。这会使熵值与熵梯度随批次长度放大，而不只是日志显示错误。16回合完整批次N=7984时，entropy_coef=.001的实际熵作用被放大7984倍；此前短程能训练的检查未覆盖批次不变性，不能证明该路径正确。
+
+已新增独立Categorical actor适配：逐transition计算masked mean entropy，保留作者初始权重、随机流、网络、PPO/critic/dual优化器和目标中其他项；作者固定源码不修改。实际actor的重复数据1/4/16倍对照验证熵值及参数梯度不变，另检查非均匀active mask的inactive梯度为零。修改改变真实训练目标，因此旧MAPPO-L试跑被停止，保留来源并标为受影响；修复后必须新实验重新训练，不能继续或合并旧曲线。MACPO已有独立正确的categorical entropy，不受此错误影响。

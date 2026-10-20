@@ -86,6 +86,16 @@ class AuthorBaseline:
                       Box(-np.inf, np.inf, (dim if self.name == 'ippo' else central,), dtype=np.float32),
                       Discrete(len(inputs[agent].mask)))
             policy = Policy(args, *spaces, device=torch.device('cpu'))
+            if self.name == 'mappo_lagrangian':
+                from .discrete_lagrangian import actor_class
+                # Preserve the author's initial weights and RNG stream. Only
+                # categorical entropy reduction changes; optimizer stays Adam.
+                with torch.random.fork_rng(devices=[]):
+                    actor = actor_class()(args, spaces[0], spaces[2], torch.device('cpu'))
+                    actor.load_state_dict(policy.actor.state_dict())
+                policy.actor = actor
+                policy.actor_optimizer = torch.optim.Adam(actor.parameters(), lr=args.lr,
+                    eps=args.opti_eps, weight_decay=args.weight_decay)
             if self.name == 'macpo':
                 policy.actor = Actor(args, spaces[0], spaces[2], torch.device('cpu'))
                 # CPO uses direct trust-region parameter steps, not this Adam optimizer.
