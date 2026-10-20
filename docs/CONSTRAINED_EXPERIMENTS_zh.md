@@ -59,3 +59,25 @@ seed101、2000训练回合、20个固定开发场景，主随机策略结果如�
 所有检查点两种模式的20个场景均超预算。MACPO有缓慢改善，但未达到阶段目标，单训练seed不能证明论文性能。逐seed成本和回报在服务器私有control保存，公开文档仅保留汇总。
 
 随后发现作者MAPPO-L的Categorical entropy与active_masks广播错误，确实放大熵梯度。受影响试跑已停止，保留记录但不得作为正常baseline性能结果。修复详见BASELINE_AUDIT_zh.md；改后用新control和独立run仅重跑MAPPO-L，不重复已完成MACPO。原始constrained-initial-v2因此停止；后续以聊天记录和新的control状态为准，不重启旧队列。
+
+## 修复版MAPPO-L开发验证及第一轮单因素对照
+
+修复版seed101的2000回合训练与全部开发验证已完成，仍按随机主模式、greedy辅模式完整报告：
+
+| checkpoint | 随机回报均值 | 随机平均成本 | 随机超限场景比例 | greedy回报均值 | greedy平均成本 |
+|---|---:|---:|---:|---:|---:|
+| 200 | -3938.95 | 13.35% | 100% | -6874.05 | 20.49% |
+| 1000 | -1089.40 | 2.50% | 10% | -5967.95 | 17.26% |
+| 2000 | -846.10 | 1.59% | 0% | -6799.55 | 20.30% |
+
+均为相同20个开发场景、同一训练seed。成本满足只说明这次开发验证的经验结果；0/20不代表真实超限概率为零。回报仍低于−500阶段目标，greedy也明显不达标，不能隐藏或据此声称已复现论文性能。
+
+下一轮保持2000回合、seed101和全部协议，仅MACPO的fraction_coef从0.1改0.5、MAPPO-L的actor lr从5e-5改1e-4，顺序执行并各评估200/1000/2000。这是最多6次候选预算中的前2次。MACPO中间步长由已保存的隔离训练批次诊断支持：1.0会产生大的importance ratio尾部，因此先检验0.5；MAPPO-L学习率对照检验相同交互预算下的改善速度，不改变约束或熵系数。未根据最终测试集选择参数。
+
+管理器支持`--overrides candidate.json`，schema为`cage4.campaign-overrides/1`，例如：
+
+```json
+{"schema":"cage4.campaign-overrides/1","algorithms":{"macpo":{"fraction_coef":0.5},"mappo_lagrangian":{"lr":0.0001}}}
+```
+
+每算法最多一个受支持超参数，拒绝预算/环境/seed等协议覆盖；范围在启动前验证。原文件规范化保存到新control的overrides.json，实际合并config写入task/run/checkpoint，评估仍严格核验同一实际config。默认YAML不变，旧control不修改、不resume。MACPO原轮与本轮的代码差异只涉及未使用的MAPPO-L分支及正确日志诊断，CPO更新机制保持相同；所有来源各自保留。

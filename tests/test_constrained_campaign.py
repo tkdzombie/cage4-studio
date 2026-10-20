@@ -34,3 +34,21 @@ class CampaignTests(unittest.TestCase):
             with campaign.campaign_lock(t):
                 with self.assertRaises(RuntimeError):
                     with campaign.campaign_lock(t):pass
+
+    def test_overrides_allow_one_factor_and_cannot_change_protocol(self):
+        self.assertEqual(campaign.load_overrides(None,['macpo']),{})
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t)/'overrides.json'
+            def check(values):
+                p.write_text(json.dumps(dict(schema='cage4.campaign-overrides/1',algorithms=values)))
+                return campaign.load_overrides(p,['macpo','mappo_lagrangian'])
+            good=dict(macpo=dict(fraction_coef=.5),mappo_lagrangian=dict(lr=.0001))
+            self.assertEqual(check(good),good)
+            for bad in ({},dict(mappo=dict(lr=.0001)),dict(macpo=dict(budget_rate=.1)),
+                        dict(macpo=dict(fraction_coef=.5,kl_threshold=.02)),
+                        dict(macpo=dict(fraction_coef=True)),dict(macpo=dict(fraction_coef=float('nan'))),
+                        dict(macpo=dict(fraction_coef=1.1)),dict(macpo=dict(ls_step=2.5)),
+                        dict(mappo_lagrangian=dict(lr=0))):
+                with self.subTest(bad=bad),self.assertRaises(ValueError):check(bad)
+            p.write_text(json.dumps(dict(schema='wrong',algorithms=good)))
+            with self.assertRaises(ValueError):campaign.load_overrides(p,['macpo'])

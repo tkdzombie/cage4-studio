@@ -30,6 +30,35 @@ def build_plan(algorithms, seeds, episodes):
     return [dict(algorithm=a, seed=s, episodes=episodes) for s in seeds for a in algorithms]
 
 
+
+def load_overrides(path, algorithms):
+    """Only explicit, single-hyperparameter candidates; never protocol changes."""
+    if path is None:
+        return {}
+    data = json.loads(Path(path).read_text())
+    if (not isinstance(data, dict) or set(data) != {'schema', 'algorithms'}
+            or data['schema'] != 'cage4.campaign-overrides/1'):
+        raise ValueError('Invalid campaign override schema')
+    values = data['algorithms']
+    if not isinstance(values, dict) or not values or set(values)-set(algorithms):
+        raise ValueError('Overrides must select algorithms in this campaign')
+    allowed = dict(macpo={'fraction_coef', 'kl_threshold', 'ls_step', 'critic_lr'},
+                   mappo_lagrangian={'lr', 'critic_lr', 'entropy_coef', 'lamda_lagr', 'lagrangian_coef_rate'})
+    for name, candidate in values.items():
+        if not isinstance(candidate, dict) or len(candidate) != 1 or set(candidate)-allowed[name]:
+            raise ValueError('One supported hyperparameter per algorithm is required')
+        key, value = next(iter(candidate.items()))
+        if key == 'ls_step':
+            valid = type(value) is int and 1 <= value <= 100
+        else:
+            low = 0 if key in ('entropy_coef', 'lamda_lagr') else 1e-10
+            high = .1 if key in ('lr', 'critic_lr', 'lagrangian_coef_rate') else (100 if key == 'lamda_lagr' else 1)
+            valid = type(value) in (int, float) and math.isfinite(value) and low <= value <= high
+        if not valid:
+            raise ValueError('Invalid candidate value: '+key)
+    return values
+
+
 def training_summary(folder):
     rows = [json.loads(p.read_text()) for p in sorted((Path(folder)/'metrics').glob('episode_*/step_*.json'))]
     result = dict(completed_episodes=len(rows))
@@ -75,6 +104,7 @@ def supervise(a):
     from cage4_baselines.paper.provenance import runtime_identity
     from cage4_baselines.safety.budgets import read_budget
     plan = build_plan(a.algorithms,a.seeds,a.episodes)
+    overrides = load_overrides(a.overrides, a.algorithms)
     control = a.control.expanduser().resolve()
     runs = a.runs.expanduser().resolve(); runs.mkdir(parents=True,exist_ok=True)
     stopping = False
@@ -96,10 +126,11 @@ def supervise(a):
         shutil.copytree(project/'cage4-baselines/configs/paper',control/'configs')
         shutil.copy2(project/'cage4-baselines/configs/safety/availability-target-v2.json',control/'budget.json')
         _,rate = read_budget(control/'budget.json',500,level=a.budget_level)
+        atomic_json(control/'overrides.json',dict(schema='cage4.campaign-overrides/1',algorithms=overrides))
         state = dict(schema='cage4.constrained-campaign/1',state='running',pid=os.getpid(),
                      identity=process_identity(os.getpid()),started_at=time.time(),runtime=runtime_identity(),
                      primary_action_mode='stochastic',secondary_action_mode='greedy',budget_rate=rate,
-                     budget_level=a.budget_level,
+                     budget_level=a.budget_level,configuration_overrides=overrides,
                      development_seeds=DEVELOPMENT_SEEDS,smoke=a.smoke,plan=plan,results=[])
         def save(**values):
             state.update(values,heartbeat=time.time());atomic_json(control/'state.json',state)
@@ -158,6 +189,7 @@ def supervise(a):
                 if stopping or (control/'STOP').exists():raise InterruptedError('Campaign stopped')
                 c=load_config(control/'configs'/(item['algorithm']+'.yaml'))
                 c.update(episodes=item['episodes'],seed=item['seed'],deterministic_eval=False,budget_level=a.budget_level)
+                c['hyperparameters']=dict(c.get('hyperparameters',{}),**overrides.get(item['algorithm'],{}))
                 if a.smoke:
                     c.update(steps=20,num_envs=2,torch_threads=1,record_replay=False)
                     c['hyperparameters']=dict(c['hyperparameters'],hidden_size=32,ppo_epoch=2)
@@ -200,6 +232,7 @@ def main():
     p.add_argument('--algorithms',nargs='+',choices=ALGORITHMS,default=list(ALGORITHMS))
     p.add_argument('--seeds',nargs='+',type=int,default=[101])
     p.add_argument('--episodes',type=int,default=2000)
+    p.add_argument('--overrides',type=Path,help='JSON single-hyperparameter candidates, frozen per campaign')
     p.add_argument('--budget-level',choices=('main','strict','loose'),default='main')
     p.add_argument('--reserve-gib',type=float,default=30.)
     p.add_argument('--max-job-hours',type=float,default=6.)
