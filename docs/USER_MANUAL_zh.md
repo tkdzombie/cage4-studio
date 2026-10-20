@@ -1,3 +1,5 @@
+> PyCharm日常启动请先看 [简明使用说明](START_SIMPLE_zh.md)：打开 `run_baseline.py` 右键 Run 即可，无需手动配置模块与参数。下面保留完整管理与批量实验说明。
+
 # CAGE4 Studio 科研系统使用说明书
 
 适用范围：已有 macOS / CybORG / CAGE4 Studio 的本地客户端、远程研究项目及 Server。安装升级细节见 [安装与回滚](INSTALL_zh.md)，找文件见 [项目架构](PROJECT_STRUCTURE_zh.md)。本文所有命令均说明执行位置。主机名、SSH 用户和个人绝对路径按自己的环境填写；公共说明书不保存私人连接信息。

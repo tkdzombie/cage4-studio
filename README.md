@@ -14,6 +14,10 @@
 
 先阅读 **[系统使用说明书](docs/USER_MANUAL_zh.md)**，查文件用 **[项目架构与放置规范](docs/PROJECT_STRUCTURE_zh.md)**，研究项目入口见 **[cage4-baselines/README](cage4-baselines/README.md)**。
 
+## PyCharm 最简单启动
+
+打开远程项目根目录 `run_baseline.py`，顶部选算法和训练轮数，然后右键 **Run**，无需填写运行参数。自己的算法从相邻的 `my_algorithm.py` 开始，入口选择 `my_algorithm` 即可。见 [三步运行说明](docs/START_SIMPLE_zh.md)。
+
 ## 论文 Baseline 与业务安全约束
 
 新增 IPPO、MAPPO、HAPPO、MAPPO-Lagrangian、MACPO 五算法统一入口，锁定作者源码并保留差异说明。MACPO 是经测试的离散动作适配，不声称未修改的官方 CAGE4 版本。见 **[算法来源、安装与训练评估](docs/PAPER_BASELINES.md)**。

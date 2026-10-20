@@ -48,7 +48,7 @@ def read_budget(path, steps, smoke=False, level='main'):
     return data, rate
 
 
-def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False):
+def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False, policy_factory=None):
     import torch
     from .backend import AuthorBaseline, fingerprint
     c = dict(config)
@@ -67,7 +67,8 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
     if hashlib.sha256(reward_file.read_bytes()).hexdigest() != budget_data['reward_source_sha256']:
         raise ValueError('Simulator reward source differs from calibration; recalibrate first')
     inputs = adapter.reset()
-    policy = AuthorBaseline(inputs, c, upstreams, rate)
+    factory = AuthorBaseline if policy_factory is None else policy_factory
+    policy = factory(inputs, c, upstreams, rate)
     source_args = vars(policy.args).copy()
     # No private source paths are included in provenance.
     metadata = dict(mode=mode, algorithm=c['algorithm'], encoder=ENCODER, cost_version=COST_VERSION,

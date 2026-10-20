@@ -55,3 +55,5 @@ cage4-baselines/
 ## 论文算法（0.4.0）
 
 IPPO / MAPPO / HAPPO / MAPPO-Lagrangian / MACPO 使用 `python -m cage4_baselines.paper`，配置位于 `configs/paper/`，业务预算位于 `configs/safety/`，作者核心通过外部锁定源码加载。环境安装仍沿用本项目解释器。先阅读 [完整算法使用说明](../docs/PAPER_BASELINES.md) 和 [业务 cost/预算依据](../docs/SAFETY_COST_zh.md)；MACPO 含明确的离散适配，不声称论文结果已复现。
+
+最简单的 PyCharm 用法：打开根目录 `run_baseline.py`，选算法/轮数/seed，右键 Run。自己的算法写 `my_algorithm.py`，入口算法名改为 `my_algorithm`。见 [简明说明](../docs/START_SIMPLE_zh.md)。
