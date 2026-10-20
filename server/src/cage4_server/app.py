@@ -8,7 +8,7 @@ from cage4_server.topology import dot_graph
 
 st.set_page_config(page_title='CAGE4 Studio',page_icon='🛡️',layout='wide')
 st.title('CAGE4 Studio · 实验观测台')
-st.caption('0.3.0 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
+st.caption('0.4.0 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
 roots=[Path(x).expanduser() for x in os.environ.get('CAGE4_RUN_ROOTS','runs').split(os.pathsep) if x]
 all_runs=reader.runs(roots)
 if not all_runs:
@@ -36,8 +36,16 @@ def monitor():
         return
     st.caption('最多显示最近 10,000 个 Episode；完整数据保存在实验目录。')
     st.subheader('Episode Return')
-    st.caption('Team Return = 五个智能体的官方 wrapper 回报之和；若官方返回共享团队奖励，此值会重复计数。比较时应保持相同定义。')
-    st.line_chart(pd.DataFrame([{'episode':x['episode'],'team_return':x['team_return']} for x in data]).set_index('episode'))
+    metric = 'official_team_return' if all('official_team_return' in x for x in data) else 'team_return'
+    st.caption('官方团队回报：共享 reward 每步计一次，包含已执行的终止步。' if metric == 'official_team_return' else
+               '旧版 team_return：五个 Blue 回报之和，可能重复共享奖励；与官方团队回报分开比较。')
+    st.line_chart(pd.DataFrame([{'episode':x['episode'],metric:x[metric]} for x in data]).set_index('episode'))
+    safety = [{'episode':x['episode'], '业务失败率': x['safety']['mean_cost'],
+               '预算': x['safety_budget_rate']} for x in data if 'safety' in x]
+    if safety:
+        st.subheader('业务可用性约束')
+        st.caption('越低越好；按官方任务阶段权重统计 Green 工作/服务失败。预算属于研究协议。')
+        st.line_chart(pd.DataFrame(safety).set_index('episode'))
     st.subheader('五个 Blue Agent')
     st.line_chart(pd.DataFrame([{'episode':x['episode'],**x.get('agents',{})} for x in data]).set_index('episode'))
     for key,title in [('actor_loss','Actor loss'),('critic_loss','Critic loss'),('entropy','Entropy')]:
@@ -70,11 +78,13 @@ with replay:
     else: st.info('尚无可回放帧。')
 with compare:
     choices=st.multiselect('选择实验',all_runs,default=[selected],format_func=lambda p:p.name)
+    metric = st.selectbox('回报口径', ['official_team_return', 'team_return'])
+    st.caption('仅显示具有所选指标的记录，避免新旧回报定义混用。')
     curves=[];summaries=[]
     for p in choices:
         rows=reader.metrics(p)
         label=p.parent.name+'/'+p.name
-        curves.extend({'episode':x['episode'],'run':label,'return':x['team_return']} for x in rows)
+        curves.extend({'episode':x['episode'],'run':label,'return':x[metric]} for x in rows if metric in x)
         evaluation=reader.read(p,p/'evaluation.json',{})
         manifest=reader.read(p,p/'manifest.json',{})
         summaries.append({'run':label,'mode':manifest.get('mode','legacy'),

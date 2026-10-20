@@ -4,7 +4,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import zipfile
-VERSION='0.3.0'
+VERSION='0.4.0'
 SKIP={'settings.local','.git','__pycache__','.DS_Store','__MACOSX','runs','test-runs','acceptance','logs','.conda-env','.venv'}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args()

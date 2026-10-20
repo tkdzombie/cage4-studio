@@ -33,3 +33,7 @@ encoder 为 blue-observation-hash/1：将该 agent 的实际 observation 递归�
 checkpoint 仅在可信研究命令行加载，使用 torch.load(weights_only=True)；网页从不反序列化权重。保存模型、optimizer、配置、Episode；当前只支持用于评估，尚未实现断点续训或完全 RNG 状态恢复。
 
 评估按 seed 分组，每组 episodes 次。首个 episode_seed 等于 seed；后续由 numpy SeedSequence([seed, episode_index]) 派生。每组重设策略采样 RNG。evaluation.json 保存原始分组回报、seed 均值、这些均值的平均和样本标准差；单 seed 不提供标准差。未完成评估标记 complete=false。
+
+## 0.4.0 向后兼容研究字段
+
+仍使用 `cage4.run/1` 原子文件 envelope，manifest 新增 protocol=`cage4.paper-common-observation/1`、upstream commit/hash、cost_version、safety_budget_rate/level、critic_information、parameter_sharing 与 smoke 标记；config/budget/upstream-arguments 独立保存。metrics 添加 official_team_return（团队 reward 一次）、official_script_compat_return（匹配官方脚本终止步排除顺序）、safety（mean/sum、请求加权失败率、覆盖）、预算和超限量；原 team_return 保留。每个训练 agent 的 losses 保存作者字段及展示别名、模型实际权重是否改变。MACPO 上游错误的 cost_loss 诊断被省略，另写更新后 cost critic MSE。frames 新增 safety，每个实际步写入一次。详情见 PAPER_BASELINES.md / SAFETY_COST_zh.md。旧 Server 能读取 envelope，但0.4 UI 才区分这些回报口径并展示 cost。

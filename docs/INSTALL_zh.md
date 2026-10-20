@@ -91,3 +91,20 @@ $HOME/cage4-studio/.conda-env/bin/python ops/service.py rollback \
 这次交付针对已运行的 Mac Studio，不带 Conda、PyTorch 或 CybORG 二进制，不自动下载它们。空白机器需要 Python 3.10、上游固定 commit、macOS arm64 对应 wheel。`requirements-legacy.txt` 是原始安装约束，仅供溯源；与实际已运行环境不完全一致，不要为了“对齐”而直接重装。`requirements-tested.txt` 是本次关键版本快照，并非完整可重现 lock。
 
 如必须重建，在新环境中按关键版本安装，再 clone 上游 `https://github.com/cage-challenge/cage-challenge-4.git`、checkout `8c3c50ca54b176c2de199847944e8dcc035497e3`，使用 `pip install --no-deps -e <源码目录>`。若仍无法 import，显式将源码目录加入该新解释器的 .pth（不要改其他环境）。接着运行 ops/check.sh 与 ops/validate_simulator.py。不要使用已失效的 Miniforge checksum 下载 URL，不把 Ray 2.40 与 gymnasium 0.28.1 混装。空白安装流程未做第二台机器验收，不能视为一键支持所有平台。
+
+## 0.4.0 升级（已有 Mac Studio）
+
+本地 Client0.3 可继续使用。研究代码更新到0.4后，按 PAPER_BASELINES.md 准备外部作者源码并运行验收；不需要重新安装 PyTorch/CybORG。公开发布 ZIP 只有自有源码、配置和文档，不含作者仓库、权重或私人 Client 设置。
+
+若通过源码 ZIP 安装 Server，将包解压到新的 release 父目录，得到且仅得到一层 `CAGE4_Studio_v0.4.0/`，先进入该目录再执行服务安装；不要解压覆盖旧版本：
+
+```bash
+cd "$HOME/cage4-studio-releases"
+unzip /path/to/CAGE4_Studio_v0.4.0_Source.zip
+cd CAGE4_Studio_v0.4.0
+"$HOME/cage4-studio/.conda-env/bin/python" ops/service.py install \
+  --python "$HOME/cage4-studio/.conda-env/bin/python" \
+  --runs "$HOME/cage4-experiments" --legacy "$HOME/cage4-studio"
+```
+
+安装器先检查运行依赖，自动备份现有 plist，再切换服务；失败自动还原。记录它输出的 Backup 路径；rollback 命令仍如上。只更换0.4 Server 能增加成本曲线/回报口径选择；不改变 TensorBoard、实验数据或训练算法。研究解释器若 editable 指向现有 Git 工作副本，更新 Git 后即可使用源码；若需要刷新包版本元数据，在该独立解释器中执行 `python -m pip install --no-deps --no-build-isolation -e protocol -e cage4-baselines`。不要在原始部署环境里卸载研究依赖。

@@ -51,3 +51,7 @@ cage4-baselines/
 `cage4` console command 在重新安装 editable 包后也可使用，参数相同。旧 `python -m cage4_baselines.runner` 保持可用。Actor-Critic 评估必须额外指定真实 checkpoint，推荐使用 configs/evaluate/actor_critic.yaml，不更新权重。
 
 完整说明见 [系统使用说明书](../docs/USER_MANUAL_zh.md)、[项目架构说明](../docs/PROJECT_STRUCTURE_zh.md) 和 [添加算法](../docs/RESEARCH_zh.md)。
+
+## 论文算法（0.4.0）
+
+IPPO / MAPPO / HAPPO / MAPPO-Lagrangian / MACPO 使用 `python -m cage4_baselines.paper`，配置位于 `configs/paper/`，业务预算位于 `configs/safety/`，作者核心通过外部锁定源码加载。环境安装仍沿用本项目解释器。先阅读 [完整算法使用说明](../docs/PAPER_BASELINES.md) 和 [业务 cost/预算依据](../docs/SAFETY_COST_zh.md)；MACPO 含明确的离散适配，不声称论文结果已复现。

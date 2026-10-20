@@ -192,3 +192,9 @@ start/stop/install/rollback 的用法见 INSTALL_zh.md；stop 只停 dashboard�
 从仓库根目录设置 CAGE4_PYTHON 后运行 `bash ops/check.sh`，会检查仓库级和研究项目两套测试。改到环境/训练/评估时，再按 ops/validate_simulator.py 做真实 CybORG 验收。CI 只跑轻量测试，不能代替实机验证。
 
 Git 只提交源码、YAML、测试和文档；不提交环境目录、实验记录、checkpoint、原始观测、密钥或私人连接参数。兼容性与已知未实现能力见 VALIDATION.md，不把短程 smoke test 当成科研结论。
+
+## 0.4.0：论文级算法比较与安全预算
+
+基础 quickstart 用于检查环境；论文比较请进入 [五算法研究说明](PAPER_BASELINES.md)。PyCharm 运行模块改为 `cage4_baselines.paper`，选择 `configs/paper/` 内相应 YAML。`safety/` 定义 cost，`configs/safety/` 保存独立校准预算；不要在 Client 或网页修改算法。网页新增业务失败率/预算曲线，回报默认按共享官方 reward 每步计一次；对比页面显式选择同一回报口径。
+
+预算由 [官方业务权重 + 独立实测校准](SAFETY_COST_zh.md)确定，默认主阈值24.748%，并有严格/宽松档。完整训练需多训练 seed 和独立评估；验收中的短回合不能当作论文性能。升级仍备份旧服务版本和 plist，研究工程与实验目录保留；0.3 Client 可继续使用。

@@ -81,3 +81,7 @@ v0.3.0 的导入路径 adapter.py、engine.py、observations.py、runner.py、te
 平铺的旧 YAML 为原参数兼容副本，明确不作为新模板；新增实验只使用分目录配置。旧 Random/Sleep YAML 是 30 Episode，新对照评估模板是 5 Episode。两者不要混淆。
 
 本次重构没有改变 Actor-Critic 数学实现或 run schema，也没有启用 IPPO/MAPPO。已保存的 v0.3.0 新编码 checkpoint 继续按原有张量容器格式读取；更早 BlueFlat 编码权重仍不兼容。Server 固定 v0.3.0 部署无需因研究目录整理而重装。
+
+## 0.4.0 论文算法扩展
+
+前文“本次重构”指历史 0.3.0 目录整理。0.4.0 新增 `configs/paper/`（五算法 YAML）、`configs/safety/`（预算与校准数据）、`src/cage4_baselines/paper/`（作者算法桥接）、`safety/`（cost 与独立校准）；各文件职责和运行方法见 [PAPER_BASELINES.md](PAPER_BASELINES.md)。环境仍只在 envs，Server 只读取文件。作者源码保存在独立 upstream 目录，不放在 PyCharm 自有代码或实验目录内。

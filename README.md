@@ -1,10 +1,10 @@
-# CAGE4 Studio 0.3.0 · 独立科研工程
+# CAGE4 Studio 0.4.0 · 独立科研工程
 
 研究项目决定算法，Server 读取实验，Client 连接网页。面向 macOS / Apple Silicon / Toolbox 远程 PyCharm；非官方 CAGE 工具，不声称训练收敛或达到挑战基准。
 
 | 部分 | 目录 | 职责 |
 |---|---|---|
-| cage4-baselines | `cage4-baselines/` | 环境适配、YAML、train/evaluate、Random/Sleep、五策略 Actor-Critic、插件注册 |
+| cage4-baselines | `cage4-baselines/` | 环境适配、YAML、train/evaluate、作者来源 IPPO/MAPPO/HAPPO/MAPPO-L/MACPO、基础对照、插件注册 |
 | Studio Server | `server/` | 只读曲线、五 Agent 指标、真实接口拓扑、红队记录、Episode/Step 回放、对比 |
 | macOS Client | `client/` | 本地 SSH 转发与浏览器；不启动 PyCharm或服务器 |
 | 共享协议 | `protocol/` | cage4.run/1 原子文件格式、进程身份与状态 |
@@ -13,6 +13,12 @@
 已实查服务器旧环境和用户原 GitHub 仓库。迁移不覆盖 `$HOME/cage4-studio`；原数据、环境、CybORG 源码都保留。旧项目源码在 Git 历史与 `legacy/` 留存。没有替用户选定 LICENSE，见 [NOTICE](NOTICE.md)。
 
 先阅读 **[系统使用说明书](docs/USER_MANUAL_zh.md)**，查文件用 **[项目架构与放置规范](docs/PROJECT_STRUCTURE_zh.md)**，研究项目入口见 **[cage4-baselines/README](cage4-baselines/README.md)**。
+
+## 论文 Baseline 与业务安全约束
+
+新增 IPPO、MAPPO、HAPPO、MAPPO-Lagrangian、MACPO 五算法统一入口，锁定作者源码并保留差异说明。MACPO 是经测试的离散动作适配，不声称未修改的官方 CAGE4 版本。见 **[算法来源、安装与训练评估](docs/PAPER_BASELINES.md)**。
+
+结合官方阶段业务权重，以 Green 业务失败率定义 cost；20 个校准场景 + 20 个独立验证场景得到主预算 **24.748%**，严格/宽松档 **22.319% / 25.866%**。这是本工程研究协议，非官方阈值。见 **[cost/预算依据与实测数据](docs/SAFETY_COST_zh.md)**。
 
 ## 先运行基础环境和 Baseline
 
@@ -76,4 +82,4 @@ bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
 - [真实代码审查与迁移依据](docs/AUDIT.md)
 - [验证结果与兼容性限制](docs/VALIDATION.md)
 
-M3 Ultra 不等于 CUDA GPU。默认 CPU；MPS 只加速支持的 PyTorch 算子，不加速整个仿真。IPPO/MAPPO 尚未实现，注册表对这些名字明确报错。Actor-Critic 是 Monte Carlo REINFORCE + value baseline，不是 PPO。当前不支持断点续训；旧 BlueFlat checkpoint 不兼容新 observation encoder。完整训练、测试、可运行包与部署状态以验证文档为准。
+M3 Ultra 不等于 CUDA GPU。默认 CPU；MPS 只加速支持的 PyTorch 算子，不加速整个仿真。论文算法使用独立 `python -m cage4_baselines.paper` 入口；旧基础算法注册表仍拒绝未知名字，避免误用同名空实现。Actor-Critic 是 Monte Carlo REINFORCE + value baseline，不是 PPO。当前不支持断点续训；旧 BlueFlat checkpoint 不兼容新 observation encoder。完整训练、测试、可运行包与部署状态以验证文档为准。
