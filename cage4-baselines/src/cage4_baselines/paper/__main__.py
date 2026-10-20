@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import shutil
 import time
 from contextlib import nullcontext
 import numpy as np
@@ -15,6 +16,7 @@ from ..experiments.runner import save_checkpoint
 from ..recording.telemetry import frame
 from ..safety.costs import COST_VERSION, measure, summarize
 from ..safety.calibrate import CALIBRATION_SEEDS, VALIDATION_SEEDS
+from ..safety.budgets import read_budget
 from . import ALGORITHMS
 
 
@@ -42,18 +44,6 @@ def load_config(path):
     from ..envs.belief import observation_config
     observation_config(c.get('observation'))
     return c
-
-
-def read_budget(path, steps, smoke=False, level='main'):
-    data = json.loads(Path(path).read_text())
-    if data.get('schema') != 'cage4.budget-calibration/1' or data.get('cost_version') != COST_VERSION:
-        raise ValueError('Incompatible budget schema')
-    if data.get('status') != 'calibrated': raise ValueError('Budget did not pass independent validation')
-    if not smoke and steps != data['configured_steps']:
-        raise ValueError('Horizon differs from calibration; recalibrate or use --smoke for interface tests')
-    rate = data['budgets'][level+'_rate']
-    if not 0 <= rate <= 1: raise ValueError('Invalid budget rate')
-    return data, rate
 
 
 def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=None, smoke=False, policy_factory=None):
@@ -105,6 +95,10 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
     if c.get('num_envs',1)>1 and policy_factory is not None:
         raise ValueError('Custom policy factory currently requires num_envs: 1')
     writer = RunWriter(runs, c, metadata)
+    # Preserve the exact policy implementation so future code upgrades need not
+    # invalidate evaluation of this run. Dependencies still require exact parity.
+    shutil.copytree(Path(__file__).resolve().parents[1], writer.path/'source'/'cage4_baselines',
+                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     atomic_json(writer.path/'observation-schema.json', adapter.observation_schema())
     atomic_json(writer.path/'spaces.json', {a:dict(observation_dim=len(x.observation), actions=len(x.mask)) for a,x in inputs.items()})
     atomic_json(writer.path/'budget.json', budget_data)

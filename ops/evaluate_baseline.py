@@ -6,6 +6,7 @@ invalidate an already running experiment's algorithm provenance.
 """
 import argparse
 import json
+import sys
 from pathlib import Path
 
 
@@ -17,7 +18,6 @@ def read_training_config(folder):
 
 
 def main():
-    from cage4_baselines.paper.__main__ import run
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--run',type=Path,required=True)
     p.add_argument('--episode',type=int,required=True)
@@ -27,6 +27,10 @@ def main():
     p.add_argument('--budget',type=Path)
     p.add_argument('--smoke',action='store_true')
     a=p.parse_args()
+    snapshot=a.run.resolve()/'source'
+    if (snapshot/'cage4_baselines'/'paper'/'__main__.py').is_file():
+        sys.path.insert(0,str(snapshot))
+    from cage4_baselines.paper.__main__ import run
     config=read_training_config(a.run)
     checkpoint=a.run/'checkpoints'/f'episode_{a.episode:06d}.pt'
     budget=a.budget or a.run/'budget.json'

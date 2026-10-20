@@ -40,7 +40,7 @@ def main():
     print(f"环境进程：{config.get('num_envs',1)}，模型线程：{config.get('torch_threads',1)}，每 {config['checkpoint_every']} 回合保存权重。",flush=True)
     print("每回合记录回报与成本；每个 rollout 批次更新权重并记录损失。磁盘只保留最近 5 次运行。", flush=True)
     path = run(config, Path.home() / "cage4-experiments", Path.home() / "cage4-upstreams",
-               PROJECT / "configs" / "safety" / "availability-v1.json", policy_factory=custom)
+               PROJECT / "configs" / "safety" / "availability-target-v2.json", policy_factory=custom)
     print(f"训练完成。实验和权重保存在：{path}", flush=True)
 
 

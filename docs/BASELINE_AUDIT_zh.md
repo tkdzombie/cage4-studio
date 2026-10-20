@@ -51,7 +51,7 @@ PY="$HOME/cage4-research-env/bin/python"
 "$PY" -m unittest discover -s cage4-baselines/tests -v
 "$PY" ops/validate_paper_baselines.py --runs /tmp/cage4-audit/runs \
   --upstreams "$HOME/cage4-upstreams" \
-  --budget cage4-baselines/configs/safety/availability-v1.json \
+  --budget cage4-baselines/configs/safety/availability-target-v2.json \
   --output /tmp/cage4-audit/report.json
 ```
 

@@ -1,8 +1,33 @@
 import unittest
+import json
+from pathlib import Path
+import tempfile
 from cage4_baselines.safety.costs import Workload, aggregate, summarize
 
 
 class AvailabilityTests(unittest.TestCase):
+    def test_new_targets_and_historical_budget_remain_distinct(self):
+        from cage4_baselines.safety.budgets import read_budget
+        root = Path(__file__).resolve().parents[1]/'configs/safety'
+        old, rate = read_budget(root/'availability-v1.json',500)
+        self.assertAlmostEqual(rate,.2474800289213457)
+        path = root/'availability-target-v2.json'
+        target, rate = read_budget(path,500)
+        self.assertEqual(rate,.05)
+        self.assertFalse(target['validation_mean_feasible'])
+        self.assertEqual(target['feasibility'],'not_established')
+        self.assertEqual(read_budget(path,500,level='strict')[1],.03)
+        self.assertEqual(read_budget(path,500,level='loose')[1],.10)
+        with self.assertRaises(ValueError): read_budget(path,20)
+        with tempfile.TemporaryDirectory() as t:
+            bad = Path(t)/'bad.json'
+            for rates in (dict(strict_rate=.2,main_rate=.15,loose_rate=.1),
+                          dict(strict_rate=.1,main_rate=float('nan'),loose_rate=.2),
+                          dict(strict_rate=.1,main_rate=True,loose_rate=.2)):
+                value = dict(target,budgets=rates)
+                bad.write_text(json.dumps(value))
+                with self.assertRaises(ValueError): read_budget(bad,500)
+
     def test_mission_weight_and_failure_denominator(self):
         tasks = [Workload(10, True, 'LWF', 'critical'), Workload(1, False, 'ASF', 'hq'),
                  Workload(0, True, 'ASF', 'disabled')]
