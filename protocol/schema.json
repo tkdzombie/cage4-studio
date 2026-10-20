@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cage4:run:1",
+  "title": "CAGE4 atomic run record v1",
+  "type": "object",
+  "required": ["schema"],
+  "properties": {"schema": {"const": "cage4.run/1"}},
+  "oneOf": [
+    {"required": ["mode", "algorithm", "encoder"], "properties": {"mode": {"enum": ["train", "evaluate"]}, "algorithm": {"type": "string"}, "encoder": {"type": "string"}}},
+    {"required": ["state", "pid", "heartbeat"], "properties": {"state": {"enum": ["running", "finished", "stopped", "error"]}, "pid": {"type": "integer", "minimum": 1}, "heartbeat": {"type": "number"}, "identity": {"type": ["string", "null"]}}},
+    {"required": ["episode", "step", "team_return", "agents", "losses", "seed"], "properties": {"episode": {"type": "integer", "minimum": 1}, "step": {"type": "integer", "minimum": 0}, "team_return": {"type": "number"}, "agents": {"type": "object", "additionalProperties": {"type": "number"}}, "losses": {"type": "object"}, "seed": {"type": "integer"}}},
+    {"required": ["episode", "step", "blue", "blue_observations", "red"], "properties": {"episode": {"type": "integer", "minimum": 1}, "step": {"type": "integer", "minimum": 0}, "blue": {"type": "object"}, "blue_observations": {"type": "object"}, "red": {"type": "object"}, "topology": {"type": "object"}}}
+  ]
+}
