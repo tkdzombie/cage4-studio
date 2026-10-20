@@ -39,7 +39,7 @@
 4. PyCharm 解释器选择远程 `~/cage4-research-env/bin/python`。它已经安装研究包；无需让本地 Python 承担仿真。
 5. 在网页选择 run 查看结果。网页显示的是已写入记录，不是 PyCharm 当前编辑器内容。
 
-Toolbox 的版本可能需要手动创建运行配置：Python module 选择 cage4_baselines，工作目录为 cage4-baselines，参数使用后文示例。本项目提供 Train Actor Critic、Evaluate Random、Evaluate Sleep 三个共享配置；Actor-Critic 评估必须由你指定真实 checkpoint。
+Toolbox 的版本可能需要手动创建运行配置：Python module 选择 cage4_baselines，工作目录为 cage4-baselines，参数使用后文示例。参数框不经过 shell，请填写远程绝对输出路径，或使用共享配置的路径宏；不要直接依赖终端中的 $HOME 或 ~ 展开。本项目提供 Train Actor Critic、Evaluate Random、Evaluate Sleep 三个共享配置；Actor-Critic 评估必须由你指定真实 checkpoint。
 
 ## 4. 训练一次实验（远程 Mac Studio 终端）
 
