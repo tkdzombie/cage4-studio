@@ -2,6 +2,14 @@
 
 本目录是独立研究项目。打开它、选择研究解释器、修改算法和 YAML，即可运行实验；网页只读取产生的记录。
 
+## 先跑通
+
+```bash
+"$HOME/cage4-research-env/bin/python" -m cage4_baselines quickstart --runs "$HOME/cage4-experiments"
+```
+
+一键完成真实环境、Actor-Critic 训练、Random/Sleep 对照与三 seed 评估，结果可在网页查看。单独检查环境使用 `python -m cage4_baselines smoke`。完整用法见 [跑通指南](../docs/BASELINES_START_zh.md)。
+
 ## 找文件
 
 ```text

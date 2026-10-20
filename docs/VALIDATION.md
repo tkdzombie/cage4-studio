@@ -37,3 +37,7 @@ CI 在 macOS 上运行轻量编译、shell 检查及核心单元测试，只安�
 后续将研究项目分为 core/envs/algorithms/experiments/recording，并增加 environments、按用途分组的 YAML、独立项目测试和中文完整说明书。服务器固定发布目录及 run schema 不变。
 
 Mac Studio 上仓库测试 8 项、研究项目测试 8 项，共 16 项全部通过；包括新增配置校验、旧导入身份兼容与内置算法依赖隔离检查。重构后重新执行真实 Actor-Critic 训练、三 seed 评估、Random/Sleep、JSON Schema 和 Streamlit AppTest，全部通过。新旧 CLI 均保留。该验收验证目录迁移后的运行链路，不是新增算法或科研性能结论。
+
+## 基础环境与一键 Baseline 验收（2026-10-20）
+
+环境适配器改为 reset/step 自动同步状态，并验证动作完整性、掩码及回合生命周期。新增 smoke、quickstart 与可执行环境示例。Mac Studio 实机 8 项仓库测试 + 11 项研究测试全部通过；一键套件实际执行了环境检查、2 Episode 训练、五模型参数变化检查，以及 Actor-Critic / Random / Sleep 的三 seed 评估，checkpoint 未被评估改写。结果保留在用户实验目录，不提交公开源码仓库。

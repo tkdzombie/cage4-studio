@@ -1,3 +1,7 @@
+# 基础环境与可运行 Baseline 入口
+
+修正环境 reset/step 状态管理，严格校验每个 Blue 动作与回合生命周期。新增 smoke、quickstart 和可执行环境示例，一条命令实际运行 Actor-Critic 训练、权重验证及 Random/Sleep 多 seed 对照。增加真实环境契约测试与中文跑通指南。
+
 # 后续研究工程整理
 
 按 core/envs/algorithms/experiments/recording 拆分研究代码；Python 依赖说明、训练/评估/基线 YAML、项目测试与 PyCharm 配置各归其位。新增完整系统使用说明书和目录职责文档，保持 v0.3.0 导入、CLI、配置及 checkpoint 兼容。固定部署和 run schema 不变。

@@ -2,6 +2,7 @@
 
 | 配置 | 用途 | 默认 Episode 数 |
 |---|---|---:|
+| quickstart/actor_critic.yaml | 短程一键基线演示 | 2（评估为 1 / seed） |
 | train/actor_critic.yaml | Actor-Critic 训练 | 30 |
 | evaluate/actor_critic.yaml | 加载 checkpoint 后评估 | 5 / seed |
 | baselines/random.yaml | Random 对照评估 | 5 / seed |
