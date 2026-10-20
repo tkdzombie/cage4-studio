@@ -18,3 +18,7 @@ logs/
 *.key
 
 settings.local
+
+# Optional research-project-local outputs; keep only directory guidance.
+cage4-baselines/artifacts/*
+!cage4-baselines/artifacts/README.md

@@ -31,3 +31,9 @@ Server 日志：`~/cage4-studio-logs/dashboard.{out,err}.log`。
 CI 在 macOS 上运行轻量编译、shell 检查及核心单元测试，只安装 NumPy/PyYAML，主动跳过需要 Torch 的权重测试；M3 实机的上述全量测试补充该限制。分支与 PR 的两次 macOS CI 已通过（PR #1）；后续提交状态以实际 PR 检查为准。
 
 没有验证：MPS、长时间收敛、百万步记录性能、其他 macOS 机器空白安装、重启后未登录启动、JetBrains Toolbox 的 GUI 各版本自动导入运行配置、代码签名/公证。Toolbox 的项目和解释器已准备好，但没有声称已替用户点击完成 PyCharm GUI。当前不支持断点续训、IPPO、MAPPO、集群调度或进程级恶意插件沙箱。
+
+## 研究项目目录整理验收（2026-10-20）
+
+后续将研究项目分为 core/envs/algorithms/experiments/recording，并增加 environments、按用途分组的 YAML、独立项目测试和中文完整说明书。服务器固定发布目录及 run schema 不变。
+
+Mac Studio 上仓库测试 8 项、研究项目测试 8 项，共 16 项全部通过；包括新增配置校验、旧导入身份兼容与内置算法依赖隔离检查。重构后重新执行真实 Actor-Critic 训练、三 seed 评估、Random/Sleep、JSON Schema 和 Streamlit AppTest，全部通过。新旧 CLI 均保留。该验收验证目录迁移后的运行链路，不是新增算法或科研性能结论。

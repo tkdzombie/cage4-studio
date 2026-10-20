@@ -1,3 +1,7 @@
+# 后续研究工程整理
+
+按 core/envs/algorithms/experiments/recording 拆分研究代码；Python 依赖说明、训练/评估/基线 YAML、项目测试与 PyCharm 配置各归其位。新增完整系统使用说明书和目录职责文档，保持 v0.3.0 导入、CLI、配置及 checkpoint 兼容。固定部署和 run schema 不变。
+
 # 0.3.0
 
 拆分独立 cage4-baselines、只读 Studio Server 和 macOS SSH Client。提供 Random/Sleep 与真实五策略 Actor-Critic，独立 checkpoint 评估和 seed 统计；算法注册不冒充 IPPO/MAPPO 实现。
