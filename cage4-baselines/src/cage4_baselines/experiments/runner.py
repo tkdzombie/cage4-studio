@@ -63,7 +63,7 @@ def run(config, runs_root, mode='train', checkpoint=None, seeds=None, adapter_fa
             tb = SummaryWriter(str(writer.path/'tensorboard'))
         random.seed(c['seed']); np.random.seed(c['seed'])
         adapter = adapter_factory(c['seed'],c['steps'],c['red'],c['obs_dim'])
-        inputs = adapter.inputs(adapter.reset(c['seed']))
+        inputs = adapter.reset(c['seed'])
         policy = create(c['algorithm'],inputs,c)
         if checkpoint:
             import torch
@@ -86,7 +86,7 @@ def run(config, runs_root, mode='train', checkpoint=None, seeds=None, adapter_fa
                 episode += 1
                 # Distinct deterministic episode seeds; evaluation seeds are explicitly recorded.
                 episode_seed = seed if local_ep==0 else int(np.random.SeedSequence([seed,local_ep]).generate_state(1)[0])
-                inputs = adapter.inputs(adapter.reset(episode_seed))
+                inputs = adapter.reset(episode_seed)
                 writer.record('frames',episode,0,frame(adapter,episode,0))
                 scores={a:0. for a in inputs}
                 last = 0
@@ -108,7 +108,7 @@ def run(config, runs_root, mode='train', checkpoint=None, seeds=None, adapter_fa
                     data.update(rewards=rewards,terminated=terminated,truncated=truncated,seed=episode_seed)
                     writer.record('frames',episode,step,data)
                     writer.status(episode=episode,step=step,seed=episode_seed)
-                    inputs = adapter.inputs(next_inputs)
+                    inputs = next_inputs
                     last = step
                     if terminal: break
                 if stopped[0]: break
@@ -143,15 +143,35 @@ def run(config, runs_root, mode='train', checkpoint=None, seeds=None, adapter_fa
         if tb: tb.close()
         for sig,handler in old_handlers.items(): signal.signal(sig,handler)
 
-def main():
-    p=argparse.ArgumentParser(description='Independent CAGE4 experiment runner')
-    p.add_argument('mode',choices=['train','evaluate'])
-    p.add_argument('--config',required=True,type=Path)
-    p.add_argument('--runs',required=True,type=Path)
-    p.add_argument('--checkpoint',type=Path)
-    p.add_argument('--seeds',type=int,nargs='+')
-    a=p.parse_args()
-    if a.mode=='train' and a.seeds:
-        p.error('--seeds is for evaluation; use independent train configurations per seed')
-    print(run(load(a.config),a.runs,a.mode,a.checkpoint,a.seeds),flush=True)
-if __name__=='__main__': main()
+def main(argv=None):
+    p = argparse.ArgumentParser(description='Independent CAGE4 experiments')
+    commands = p.add_subparsers(dest='mode', required=True)
+    for mode in ('train', 'evaluate'):
+        command = commands.add_parser(mode)
+        command.add_argument('--config', required=True, type=Path)
+        command.add_argument('--runs', required=True, type=Path)
+        if mode == 'evaluate':
+            command.add_argument('--checkpoint', type=Path)
+            command.add_argument('--seeds', type=int, nargs='+')
+    check = commands.add_parser('smoke', help='Run one real environment episode')
+    check.add_argument('--seed', type=int, default=7629)
+    check.add_argument('--steps', type=int, default=20)
+    starter = commands.add_parser('quickstart', help='Run environment + learnable and fixed baselines')
+    starter.add_argument('--runs', type=Path, default=Path.home()/'cage4-experiments')
+    starter.add_argument('--config', type=Path)
+    starter.add_argument('--seeds', type=int, nargs='+', default=[1001, 1002, 1003])
+    a = p.parse_args(argv)
+    if a.mode == 'smoke':
+        import json
+        from ..envs.smoke import smoke
+        print(json.dumps(smoke(a.seed, a.steps), ensure_ascii=False, indent=2), flush=True)
+    elif a.mode == 'quickstart':
+        from .starter import quickstart
+        print(quickstart(a.runs, a.config, a.seeds), flush=True)
+    else:
+        print(run(load(a.config), a.runs, a.mode,
+                  getattr(a, 'checkpoint', None), getattr(a, 'seeds', None)), flush=True)
+
+
+if __name__ == '__main__':
+    main()

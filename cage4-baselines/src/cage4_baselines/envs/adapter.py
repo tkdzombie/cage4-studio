@@ -1,31 +1,81 @@
-"""Official fixed action wrapper + observation-only features; no BlueFlatWrapper."""
+"""Five-agent CAGE4 API: reset() -> policy inputs; step(actions) -> transition.
+
+Only official Blue observations and action metadata enter PolicyInput.
+Researcher telemetry is collected separately by the experiment runner.
+"""
+from numbers import Integral
 import numpy as np
 from .factory import BLUE_NAMES, create_env
 from .observations import encode
 from ..core.types import PolicyInput
 
+
 class Cage4Adapter:
-    def __init__(self, seed, steps, red, obs_dim=512):
+    def __init__(self, seed=7629, steps=100, red='FiniteStateRedAgent', obs_dim=512):
         from CybORG.Agents.Wrappers import BlueFixedActionWrapper
-        self.base = create_env(seed=seed, steps=steps, red=red)
+        self.seed = self._seed(seed)
+        if type(steps) is not int or not 10 <= steps <= 1000:
+            raise ValueError('steps must be an integer from 10 to 1000')
+        if type(obs_dim) is not int or not 64 <= obs_dim <= 8192:
+            raise ValueError('obs_dim must be an integer from 64 to 8192')
+        self.base = create_env(seed=self.seed, steps=steps, red=red)
         self.env = BlueFixedActionWrapper(self.base, pad_spaces=True)
         self.obs_dim = obs_dim
+        self.raw = {}
+        self.current = {}
+        self._started = False
+        self._done = False
+
+    @staticmethod
+    def _seed(seed):
+        if isinstance(seed, bool) or not isinstance(seed, Integral) or not 0 <= seed < 2**32:
+            raise ValueError('seed must be a uint32 integer')
+        return int(seed)
+
     def _inputs(self, raw, info):
+        result = {}
+        for agent, observation in raw.items():
+            mask = np.asarray(info[agent]['action_mask'], dtype=bool).copy()
+            labels = tuple(map(str, self.env.action_labels(agent)))
+            if mask.ndim != 1 or len(mask) != len(labels) or not mask.any():
+                raise RuntimeError(f'Invalid official action mask for {agent}')
+            result[agent] = PolicyInput(encode(observation, self.obs_dim), mask, labels)
         self.raw = raw
-        return {a:PolicyInput(encode(raw[a],self.obs_dim),
-                              np.asarray(info[a]['action_mask'],dtype=bool).copy(),
-                              tuple(map(str,self.env.action_labels(a)))) for a in raw}
-    def reset(self, seed):
-        raw,info = self.env.reset(seed=seed)
+        self.current = result
+        return result
+
+    def reset(self, seed=None):
+        """Reset an episode. Omitted seed reuses the constructor seed."""
+        episode_seed = self.seed if seed is None else self._seed(seed)
+        raw, info = self.env.reset(seed=episode_seed)
         if set(raw) != set(BLUE_NAMES):
             raise RuntimeError('Expected exactly five Blue agents')
-        return self._inputs(raw,info)
+        result = self._inputs(raw, info)
+        self._started = True
+        self._done = False
+        return result
+
     def step(self, actions):
-        for a,i in actions.items():
-            if not isinstance(i,int) or i < 0 or i >= len(self.current[a].mask) or not self.current[a].mask[i]:
-                raise ValueError(f'Illegal action index: {a}/{i}')
-        raw,rew,terminated,truncated,info = self.env.step(actions)
-        return self._inputs(raw,info), {a:float(v) for a,v in rew.items()}, terminated,truncated
+        """Validate all active Blue actions before executing a simulator step."""
+        if not self._started or self._done:
+            raise RuntimeError('Call reset() before stepping a new or completed episode')
+        if not isinstance(actions, dict) or set(actions) != set(self.current):
+            raise ValueError('Provide one action for every active Blue agent')
+        normalized = {}
+        for agent, index in actions.items():
+            mask = self.current[agent].mask
+            if (isinstance(index, bool) or not isinstance(index, Integral)
+                    or index < 0 or index >= len(mask) or not mask[index]):
+                raise ValueError(f'Illegal action index: {agent}/{index}')
+            normalized[agent] = int(index)
+        raw, rewards, terminated, truncated, info = self.env.step(normalized)
+        active = tuple(self.current)
+        next_inputs = self._inputs(raw, info)
+        self._done = not next_inputs or all(
+            terminated.get(agent, False) or truncated.get(agent, False) for agent in active)
+        return next_inputs, {a: float(v) for a, v in rewards.items()}, terminated, truncated
+
     def inputs(self, values):
+        """Compatibility for v0.3.0 runners; reset/step now track state themselves."""
         self.current = values
         return values

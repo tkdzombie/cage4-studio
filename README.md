@@ -14,6 +14,17 @@
 
 先阅读 **[系统使用说明书](docs/USER_MANUAL_zh.md)**，查文件用 **[项目架构与放置规范](docs/PROJECT_STRUCTURE_zh.md)**，研究项目入口见 **[cage4-baselines/README](cage4-baselines/README.md)**。
 
+## 先运行基础环境和 Baseline
+
+在远程研究项目中执行：
+
+```bash
+cd "$HOME/cage4-research/cage4-baselines"
+"$HOME/cage4-research-env/bin/python" -m cage4_baselines quickstart --runs "$HOME/cage4-experiments"
+```
+
+真实完成环境检查、2 Episode Actor-Critic 训练、五个模型权重变化验证，以及 Actor-Critic / Random / Sleep 三 seed 评估。详见 [基础环境与 Baseline 跑通指南](docs/BASELINES_START_zh.md)。
+
 ## 现有 Mac Studio 快速使用（远程终端）
 
 以下使用当前远程用户的 $HOME 路径；SSH 主机与用户须按自己的配置填写。公开源码不包含个人连接信息。

@@ -15,9 +15,11 @@ jobs:
         env:
           PYTHONPATH: protocol:server/src:cage4-baselines/src
         run: |
-          python -m compileall -q protocol server/src cage4-baselines/src ops tests cage4-baselines/tests
+          python -m compileall -q protocol server/src cage4-baselines/src ops tests cage4-baselines/tests cage4-baselines/examples
           python -m unittest discover -s tests -v
           python -m unittest discover -s cage4-baselines/tests -v
           python -m cage4_baselines --help
+          python -m cage4_baselines smoke --help
+          python -m cage4_baselines quickstart --help
           python -m cage4_baselines.runner --help
           bash -n client/connect.sh client/build_mac_app.sh ops/check.sh ops/research.sh

@@ -10,7 +10,8 @@ class ProjectContractTests(unittest.TestCase):
  def test_all_documented_config_profiles_validate(self):
   from cage4_baselines.config import load
   profiles={'train/actor_critic.yaml':'actor_critic','evaluate/actor_critic.yaml':'actor_critic',
-            'baselines/random.yaml':'random','baselines/sleep.yaml':'sleep'}
+            'baselines/random.yaml':'random','baselines/sleep.yaml':'sleep',
+            'quickstart/actor_critic.yaml':'actor_critic'}
   for profile,algorithm in profiles.items():
    with self.subTest(profile=profile):
     self.assertEqual(load(ROOT/'configs'/profile)['algorithm'],algorithm)

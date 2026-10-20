@@ -2,6 +2,8 @@
 
 适用范围：已有 macOS / CybORG / CAGE4 Studio 的本地客户端、远程研究项目及 Server。安装升级细节见 [安装与回滚](INSTALL_zh.md)，找文件见 [项目架构](PROJECT_STRUCTURE_zh.md)。本文所有命令均说明执行位置。主机名、SSH 用户和个人绝对路径按自己的环境填写；公共说明书不保存私人连接信息。
 
+首次先运行 [基础环境和 Baseline 跑通指南](BASELINES_START_zh.md) 中的一键命令，即可得到真实训练与对照实验。
+
 ## 1. 系统如何工作
 
 你在远程 PyCharm 中写算法，研究进程运行 CybORG 并产生实验文件；Server 像实验观测台一样只读这些文件；本地 Client.app 建立安全隧道并打开网页。
