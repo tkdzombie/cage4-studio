@@ -57,13 +57,11 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
   --budget cage4-baselines/configs/safety/availability-v1.json \
   --upstreams "$HOME/cage4-upstreams" --runs "$HOME/cage4-experiments"
 
-# 使用该次运行保存的实际训练配置和真实 checkpoint 做独立评估。
-# <RUN> 替换成上一步输出的目录名。
-"$PY" -m cage4_baselines.paper evaluate \
-  --config "$HOME/cage4-experiments/<RUN>/config.json" \
-  --budget cage4-baselines/configs/safety/availability-v1.json \
+# 使用该次运行保存的实际JSON配置与checkpoint做独立评估。
+# <RUN> 替换成上一步输出的目录名；--episode选择已存在的权重。
+"$PY" ops/evaluate_baseline.py \
+  --run "$HOME/cage4-experiments/<RUN>" --episode 2000 \
   --upstreams "$HOME/cage4-upstreams" --runs "$HOME/cage4-experiments" \
-  --checkpoint "$HOME/cage4-experiments/<RUN>/checkpoints/episode_002000.pt" \
   --seeds $(seq 53001 53100)
 ```
 
@@ -105,4 +103,6 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 
 默认磁盘仅保留最近5次运行，网页仅显示最新一次；自动清理和结构化输入版本见 [OBSERVATIONS_zh.md](OBSERVATIONS_zh.md)。验收请使用临时目录，不能占用正式实验保留名额。
 
-若通过run_baseline.py覆盖了轮数/seed，评估应读取该次运行保存的config.json，而不是未经覆盖的原始YAML。两者配置不同会被严格校验拒绝。
+若通过run_baseline.py覆盖了轮数/seed，评估应使用ops/evaluate_baseline.py读取该次运行保存的config.json，而不是未经覆盖的原始YAML。两者配置不同会被严格校验拒绝。
+
+记录配置的JSON科学计数法必须用json.loads读取，避免YAML 1.1将5e-05解析为字符串。直接模块CLI的--config适用于YAML；记录配置的评估统一使用上述脚本，不修改正在运行的策略源码或放宽来源校验。
