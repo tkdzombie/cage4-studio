@@ -41,3 +41,15 @@ Mac Studio 上仓库测试 8 项、研究项目测试 8 项，共 16 项全部�
 ## 基础环境与一键 Baseline 验收（2026-10-20）
 
 环境适配器改为 reset/step 自动同步状态，并验证动作完整性、掩码及回合生命周期。新增 smoke、quickstart 与可执行环境示例。Mac Studio 实机 8 项仓库测试 + 11 项研究测试全部通过；一键套件实际执行了环境检查、2 Episode 训练、五模型参数变化检查，以及 Actor-Critic / Random / Sleep 的三 seed 评估，checkpoint 未被评估改写。结果保留在用户实验目录，不提交公开源码仓库。
+
+## 0.4.0 作者来源论文算法与约束协议验收
+
+以下为新增版本的实际验证，前文“不支持 IPPO/MAPPO”属于0.3历史状态。
+
+- 当前 Mac Studio M3、Python3.10.22 / Torch2.2.0 / NumPy1.26.4，8项仓库测试 + 17项研究测试全部通过。新增覆盖阶段权重/零权重分母、无业务步、时间平均与请求加权差异、预算规则、配置完整性与未知字段、解析 Categorical KL/Fisher 正曲率、零梯度 CG。
+- 五个作者来源方法 IPPO/MAPPO/HAPPO/MAPPO-Lagrangian/MACPO：各2个真实训练 episode（20配置步、19 transition）+ 两个独立 seed 的 checkpoint 评估；五个 actor/reward critic 均发生真实变化，两个安全方法五个 cost critic 均变化。评估检查 actor 未变化、checkpoint SHA256 未变化。MACPO 回溯允许拒绝，验收不伪造参数变化。
+- MAPPO-Lagrangian 与 MACPO 各额外运行1个完整500配置步任务（499 transition），覆盖三阶段；全部五个 actor/reward critic/cost critic 有真实更新，指标与参数均有限。
+- Sleep参考策略20个完整校准场景 + 20个独立验证场景，总19960 transitions。主预算0.2474800289213457，独立验证mean0.2037612045443033；所有步存在正权重业务，无inactive任务。数据见 configs/safety/availability-v1.json。
+- 上游源码保留在外部固定commit工作副本，未安装 MuJoCo/WandB 或下载新大依赖；本包不分发许可有歧义的第三方作者源码。
+
+这是运行、梯度、协议和预算可行性验收，不是训练收敛/论文性能结论。尚未完成：五个训练seed×100独立评估场景的正式训练、多机干净安装、MPS、百万步磁盘性能、CAGE4排行榜提交、其他论文的逐项复现；不支持断点续训。MACPO是明确的离散适配，理论安全保证未作移植证明。完整来源/超参数/限制见 PAPER_BASELINES.md。

@@ -1,0 +1,21 @@
+# Author-source integration; full protocol: docs/PAPER_BASELINES.md
+algorithm: mappo
+seed: 101
+episodes: 2000
+steps: 500
+obs_dim: 512
+reward_scale: 0.01
+budget_level: main
+checkpoint_every: 100
+record_replay: true
+snapshot_every: 50
+deterministic_eval: true
+hyperparameters:
+  hidden_size: 64
+  ppo_epoch: 5
+  lr: 0.0005
+  critic_lr: 0.0005
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_param: 0.2
+  entropy_coef: 0.01

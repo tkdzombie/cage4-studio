@@ -56,3 +56,7 @@ frame 的每步动作/观测真实保存，拓扑按间隔保存，不重建未�
 观测台每 5 秒刷新当前指标，最多载入最近 10,000 条指标，较大实验的完整统计请离线分析。非常长的回放文件索引目前仍全量枚举，百万步规模应增加分块索引；当前不承诺大集群或高并发可视化。磁盘配额/保留策略由研究者管理，不自动删除历史。网页不自动扫描源码外任意路径。
 
 研究记录、checkpoint、私钥、.env 不进入 Git 或发布包。源文件 Git 忽略 runs/、*.pt、日志和密钥。发布前仍须人工核对 staged diff，不能只依靠扩展名忽略所有秘密。
+
+## 0.4.0 论文比较入口
+
+前面的示例针对基础 Actor-Critic。IPPO、MAPPO、HAPPO、MAPPO-Lagrangian 和离散移植 MACPO 已有实际作者核心接入，使用独立 `cage4_baselines.paper` CLI 与 `configs/paper/`。不要改旧 CLI 的 algorithm 名称来代替论文入口。完整协议见 [PAPER_BASELINES.md](PAPER_BASELINES.md)，cost/预算见 [SAFETY_COST_zh.md](SAFETY_COST_zh.md)。旧插件接口继续保留；论文算法需要 transition buffer，而不只是一串 reward。
