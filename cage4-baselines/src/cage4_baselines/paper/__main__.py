@@ -18,21 +18,25 @@ from . import ALGORITHMS
 
 def load_config(path):
     c = yaml.safe_load(Path(path).read_text())
-    required = {'algorithm', 'seed', 'episodes', 'steps', 'obs_dim', 'reward_scale', 'checkpoint_every'}
+    required = {'algorithm', 'seed', 'episodes', 'steps', 'reward_scale', 'checkpoint_every'}
     if not isinstance(c, dict) or not required <= c.keys():
         raise ValueError(f'Missing config fields: {required - (c.keys() if isinstance(c, dict) else set())}')
-    allowed = required | {'hyperparameters', 'record_replay', 'snapshot_every', 'deterministic_eval', 'budget_level'}
+    allowed = required | {'hyperparameters', 'record_replay', 'snapshot_every', 'deterministic_eval', 'budget_level', 'rollout_episodes', 'observation'}
     if set(c) - allowed: raise ValueError(f'Unknown config fields: {set(c)-allowed}')
     for flag in ('record_replay', 'deterministic_eval'):
         if flag in c and type(c[flag]) is not bool: raise ValueError(f'Invalid {flag}')
     if c['algorithm'] not in ALGORITHMS: raise ValueError('Unsupported algorithm')
     for name, low, high in [('seed', 1, 1000), ('episodes', 1, 50000), ('steps', 10, 1000),
-                            ('obs_dim', 64, 8192), ('checkpoint_every', 1, 50000)]:
+                            ('checkpoint_every', 1, 50000)]:
         if type(c[name]) is not int or not low <= c[name] <= high:
             raise ValueError(f'Invalid {name}')
     if c.get('budget_level', 'main') not in ('main', 'strict', 'loose'): raise ValueError('Invalid budget_level')
     if type(c['reward_scale']) not in (int, float) or not 0 < c['reward_scale'] <= 1: raise ValueError('Invalid reward_scale')
     if c.get('snapshot_every', 50) < 1: raise ValueError('Invalid snapshot_every')
+    if type(c.get('rollout_episodes', 8)) is not int or not 1 <= c.get('rollout_episodes',8) <= 128:
+        raise ValueError('Invalid rollout_episodes')
+    from ..envs.belief import observation_config
+    observation_config(c.get('observation'))
     return c
 
 
@@ -61,19 +65,21 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
         if any(type(s) is not int or not 0 <= s < 2**32 or s in protected for s in seeds):
             raise ValueError('Invalid evaluation seed or overlap with calibration/validation')
     random.seed(c['seed']); np.random.seed(c['seed']); torch.manual_seed(c['seed']); torch.set_num_threads(1)
-    adapter = Cage4Adapter(c['seed'], c['steps'], 'FiniteStateRedAgent', c['obs_dim'])
+    adapter = Cage4Adapter(c['seed'], c['steps'], 'FiniteStateRedAgent', observation=c.get('observation'))
     from CybORG import __file__ as cyborg_file
     reward_file = Path(cyborg_file).parent/'Shared'/'BlueRewardMachine.py'
     if hashlib.sha256(reward_file.read_bytes()).hexdigest() != budget_data['reward_source_sha256']:
         raise ValueError('Simulator reward source differs from calibration; recalibrate first')
+    from .provenance import runtime_identity
+    runtime = runtime_identity()
     inputs = adapter.reset()
     factory = AuthorBaseline if policy_factory is None else policy_factory
     policy = factory(inputs, c, upstreams, rate)
     source_args = vars(policy.args).copy()
     # No private source paths are included in provenance.
-    metadata = dict(mode=mode, algorithm=c['algorithm'], encoder=ENCODER, cost_version=COST_VERSION,
+    metadata = dict(runtime=runtime, mode=mode, algorithm=c['algorithm'], encoder=ENCODER, cost_version=COST_VERSION,
                     upstream=policy.provenance, safety_budget_rate=rate, safety_budget_level=c.get('budget_level', 'main'),
-                    protocol='cage4.paper-common-observation/1', smoke=smoke,
+                    protocol='cage4.paper-common-observation/2', smoke=smoke,
                     reward_semantics='official_team_return = mean of five shared Blue returns, all executed steps',
                     critic_information='own Blue observation' if c['algorithm']=='ippo' else 'concatenated five Blue observations; no Ground Truth',
                     parameter_sharing=False, evaluation_seeds=seeds or [],
@@ -83,16 +89,19 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
         payload = torch.load(checkpoint, map_location='cpu', weights_only=True)
         if payload['encoder'] != ENCODER or payload['config'] != c or payload['upstream'] != policy.provenance:
             raise ValueError('Checkpoint/config/source provenance mismatch; evaluate with training config')
+        if payload.get('runtime') != runtime: raise ValueError('Runtime/source changed since training')
         if payload['budget_sha256'] != metadata['budget_sha256']: raise ValueError('Budget changed since training')
         if set(seeds) & set(payload['training_episode_seeds']): raise ValueError('Train/test seed overlap')
         policy.load(payload['policy'])
         metadata['checkpoint_sha256'] = hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
     eval_weights = {a: fingerprint(p.actor) for a,p in policy.policies.items()} if mode == 'evaluate' else None
     writer = RunWriter(runs, c, metadata)
+    atomic_json(writer.path/'observation-schema.json', adapter.observation_schema())
+    atomic_json(writer.path/'spaces.json', {a:dict(observation_dim=len(x.observation), actions=len(x.mask)) for a,x in inputs.items()})
     atomic_json(writer.path/'budget.json', budget_data)
     atomic_json(writer.path/'upstream-arguments.json', source_args)
     episode_seeds = seeds if mode == 'evaluate' else [100000 + c['seed']*100000 + i for i in range(c['episodes'])]
-    rows = []; trained = []
+    rows = []; trained = []; last_optimizer_episode=0; total_transitions=0
     try:
         for episode, seed in enumerate(episode_seeds, 1):
             if mode == 'evaluate':
@@ -101,15 +110,28 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
             scores = {a: 0. for a in inputs}; costs = []; rewards_once = []
             if c.get('record_replay', True): writer.record('frames', episode, 0, frame(adapter, episode, 0))
             terminal = False
+            observation_stats={a:[] for a in inputs}
+            decision_counts={a:dict(high_risk_host_action=0,stale_high_risk_host_action=0) for a in inputs}
+            cumulative_cost=0.
+            expected_steps=budget_data['calibration'][0]['steps'] if c['steps']==budget_data['configured_steps'] else c['steps']-1
             for step in range(1, c['steps']+1):
                 actions = policy.act(inputs, training=mode=='train', deterministic=c.get('deterministic_eval', True))
                 labels = {a: {'index': x, 'label': inputs[a].labels[x], 'legal_mask': True} for a,x in actions.items()}
+                for a,x in actions.items():
+                    stats=adapter.encoders[a].decision_diagnostics(inputs[a].labels[x])
+                    for k,v in stats.items():decision_counts[a][k]+=v
                 inputs, rewards, terminated, truncated = adapter.step(actions)
                 cost = measure(adapter.base); costs.append(cost)
-                if mode == 'train': policy.observe(rewards, cost['cost'])
+                cumulative_cost += cost['cost']
+                for a,e in adapter.encoders.items():observation_stats[a].append(e.diagnostics.copy())
+                decision_context=dict(cumulative_cost=cumulative_cost,recent_cost=cost['cost'],
+                                      nominal_budget=rate*expected_steps,
+                                      remaining_budget=float(np.clip(1-cumulative_cost/max(rate*expected_steps,1e-12),-1,1)),
+                                      information_scope='learner/researcher only; not actor input')
                 for a in scores: scores[a] += rewards[a]
                 rewards_once.append(float(np.mean(list(rewards.values()))))
                 terminal = not inputs or all(terminated.get(a,False) or truncated.get(a,False) for a in scores)
+                if mode == 'train': policy.observe(rewards, cost['cost'], terminal=terminal)
                 if c.get('record_replay', True):
                     # All executed actions/observations replayed; full topology sparse.
                     if step == 1 or terminal or step % c.get('snapshot_every', 50) == 0:
@@ -117,27 +139,36 @@ def run(config, runs, upstreams, budget, mode='train', checkpoint=None, seeds=No
                     else:
                         from ..recording.telemetry import safe, red_telemetry
                         data = dict(blue=labels, blue_observations=safe(adapter.raw), red=red_telemetry(adapter.base))
-                    data.update(rewards=rewards, safety=cost, seed=seed)
+                    data.update(rewards=rewards, safety=cost, decision_context=decision_context, seed=seed)
                     writer.record('frames', episode, step, data)
                 if step % 10 == 0: writer.status(episode=episode, step=step, seed=seed)
                 if terminal: break
             if not terminal: raise RuntimeError('Rollout cut before true terminal; refusing zero-bootstrap update')
-            losses = policy.update(c['reward_scale']) if mode == 'train' else {}
+            update_due = episode % c.get('rollout_episodes', 8) == 0 or episode == len(episode_seeds)
+            losses = policy.update(c['reward_scale']) if mode == 'train' and update_due else {}
+            total_transitions += step
+            if mode == 'train' and update_due: last_optimizer_episode=episode
             summary = summarize(costs)
             row = dict(episode_seed=seed, seed=c['seed'], steps=step, agents=scores, losses=losses,
+                       observation_diagnostics={a:{**{k:float(np.mean([s[k] for s in values])) for k in values[0]},
+                            **decision_counts[a], 'stale_state_action_rate':decision_counts[a]['stale_high_risk_host_action']/max(1,decision_counts[a]['high_risk_host_action'])}
+                            for a,values in observation_stats.items()},
+                       decision_context=decision_context, budget_usage=summary['mean_cost']/rate if rate else None,
                        team_return=sum(scores.values()), official_team_return=sum(rewards_once),
                        official_script_compat_return=sum(rewards_once[:-1]), safety=summary,
                        safety_budget_rate=rate, budget_excess=summary['mean_cost']-rate,
-                       budget_violated=summary['mean_cost'] > rate)
+                       budget_violated=summary['mean_cost'] > rate, optimizer_update=mode=='train' and update_due,
+                       last_optimizer_episode=last_optimizer_episode, total_transitions=total_transitions)
             writer.record('metrics', episode, step, row); rows.append(row)
             writer.status(episode=episode, step=step, seed=seed)
             if mode == 'train':
                 trained.append(seed)
                 if episode % c['checkpoint_every'] == 0 or episode == len(episode_seeds):
                     save_checkpoint(writer.path/'checkpoints'/f'episode_{episode:06d}.pt',
-                                    dict(encoder=ENCODER, config=c, upstream=policy.provenance,
+                                    dict(runtime=runtime, encoder=ENCODER, config=c, upstream=policy.provenance,
                                          budget_sha256=metadata['budget_sha256'], training_episode_seeds=trained.copy(),
-                                         episode=episode, policy=policy.checkpoint()))
+                                         episode=episode, last_optimizer_episode=last_optimizer_episode,
+                                         total_transitions=total_transitions, policy=policy.checkpoint()))
             print(json.dumps(dict(episode=episode, seed=seed, official_team_return=row['official_team_return'],
                                   mean_cost=summary['mean_cost'], budget_rate=rate)), flush=True)
         if mode == 'evaluate':

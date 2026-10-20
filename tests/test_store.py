@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from cage4_protocol.store import atomic_json,read_json,RunWriter,run_status
+from cage4_protocol.store import atomic_json,read_json,RunWriter,run_status,prune_runs
 from cage4_server import reader
 
 class StoreTests(unittest.TestCase):
@@ -43,4 +43,38 @@ class StoreTests(unittest.TestCase):
    p=Path(t)/'a.json';atomic_json(p,{'ok':1})
    with self.assertRaises(ValueError):atomic_json(p,{'bad':float('nan')})
    self.assertEqual(read_json(p),{'ok':1})
+class RetentionTests(unittest.TestCase):
+ def test_only_latest_five_survive_with_all_old_files_deleted(self):
+  with tempfile.TemporaryDirectory() as t:
+   paths=[]
+   for i in range(8):
+    w=RunWriter(t,{},{});(w.path/'weights.pt').write_bytes(b'weights');w.finish();paths.append(w.path)
+   self.assertFalse(any(p.exists() for p in paths[:3]))
+   self.assertTrue(all((p/'weights.pt').exists() for p in paths[3:]))
+ def test_live_writer_and_unknown_files_and_symlinks_survive(self):
+  with tempfile.TemporaryDirectory() as t, tempfile.TemporaryDirectory() as outside:
+   active=RunWriter(t,{},{});active.status(started_at=1)
+   root=Path(t);(root/'notes').mkdir();(root/'escape').symlink_to(outside,target_is_directory=True)
+   for _ in range(6):w=RunWriter(t,{},{});w.finish()
+   self.assertTrue(active.path.exists())
+   self.assertTrue((root/'notes').exists());self.assertTrue((root/'escape').is_symlink())
+   active.finish();self.assertFalse(active.path.exists())
+ def test_unverifiable_process_is_protected(self):
+  from unittest.mock import patch
+  with tempfile.TemporaryDirectory() as t:
+   w=RunWriter(t,{},{});w.status(started_at=1)
+   for _ in range(5):new=RunWriter(t,{},{});new.finish()
+   with patch('cage4_protocol.store.process_identity',return_value=None):
+    prune_runs([t])
+   self.assertTrue(w.path.exists())
+ def test_global_retention_across_roots_and_stale_pid(self):
+  with tempfile.TemporaryDirectory() as t:
+   roots=[Path(t)/'a',Path(t)/'b'];paths=[]
+   for i in range(8):
+    w=RunWriter(roots[i%2],{},{});w.finish();paths.append(w.path)
+   atomic_json(paths[0]/'status.json',{'state':'running','started_at':1,'pid':os.getpid(),'identity':'stale'})
+   removed=prune_runs(roots)
+   self.assertEqual(len(removed),3);self.assertFalse(paths[0].exists())
+   self.assertTrue(all(p.exists() for p in paths[3:]))
+
 if __name__=='__main__':unittest.main()

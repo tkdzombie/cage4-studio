@@ -24,7 +24,7 @@ $HOME/cage4-studio/.conda-env/bin/python ops/service.py install
 
 service install 先检查现有 Python/import，备份原 dashboard plist 到 `~/cage4-studio-backups/<时间>/`，再切换原 com.cage4studio.dashboard。新服务仍只监听 127.0.0.1:8501，读取 ~/cage4-experiments 和旧 ~/cage4-studio/runs。健康检查失败会自动恢复原 plist 与加载状态。输出的 Backup 路径须保存。
 
-原安装完整保留，原环境、旧数据和 TensorBoard 不改。更新前不要删除旧目录！独立研究环境通过 system-site-packages 复用其大依赖，仍依赖旧环境存在。若要独立搬迁，需重新安装依赖并验证。
+原安装及运行环境保留。实验按当前保留策略只留最近5次，较早数据直接删除。更新前不要删除旧目录！独立研究环境通过 system-site-packages 复用其大依赖，仍依赖旧环境存在。若要独立搬迁，需重新安装依赖并验证。
 
 ## 独立研究解释器（远程终端，首次配置）
 
@@ -78,7 +78,7 @@ $HOME/cage4-studio/.conda-env/bin/python ops/service.py rollback \
   --backup $HOME/cage4-studio-backups/<时间>
 ```
 
-回滚只还原服务定义/加载状态。新旧实验均保留，源码未覆盖。端口被手动启动的非 launchd 进程占用时，安装器会报错；先核实 `lsof -nP -iTCP:8501 -sTCP:LISTEN` 的真实进程，不使用 pkill 清场。
+回滚只还原服务定义/加载状态。服务回滚不会恢复已经按保留策略删除的实验。端口被手动启动的非 launchd 进程占用时，安装器会报错；先核实 `lsof -nP -iTCP:8501 -sTCP:LISTEN` 的真实进程，不使用 pkill 清场。
 
 ## 本地客户端（本地 MacBook Air 终端）
 
@@ -111,4 +111,4 @@ cd CAGE4_Studio_v0.4.0
 
 本地客户端建议安装在 `~/Applications/CAGE4 Studio Client.app`，不要放在临时解压/交付目录中。当前原生启动程序使用本地 ad-hoc 签名；连接设置仅存在生成的 App 中。默认网页地址是 `http://127.0.0.1:18501`，127.0.0.1本身不代表具体服务，端口必须正确。网页按实验真实开始时间排列，最新训练优先。
 
-网页默认只显示最近一次运行，并在检测到新运行后自动切换；历史数据仍保存在实验目录。需要恢复历史对比时，由服务配置设置 `CAGE4_SHOW_HISTORY=1`。
+网页默认只显示最近一次运行，并在检测到新运行后自动切换；磁盘只保留最近5次运行，较早记录及权重永久删除。需要在留存范围内恢复历史对比时，由服务配置设置 `CAGE4_SHOW_HISTORY=1`。

@@ -6,3 +6,4 @@ class PolicyInput:
     observation: np.ndarray
     mask: np.ndarray
     labels: tuple
+    graph: dict | None = None

@@ -6,21 +6,25 @@ Researcher telemetry is collected separately by the experiment runner.
 from numbers import Integral
 import numpy as np
 from .factory import BLUE_NAMES, create_env
-from .observations import encode
+from .observations import StructuredObservation, name
 from ..core.types import PolicyInput
 
 
 class Cage4Adapter:
-    def __init__(self, seed=7629, steps=100, red='FiniteStateRedAgent', obs_dim=512):
+    def __init__(self, seed=7629, steps=100, red='FiniteStateRedAgent', observation=None):
         from CybORG.Agents.Wrappers import BlueFixedActionWrapper
         self.seed = self._seed(seed)
         if type(steps) is not int or not 10 <= steps <= 1000:
             raise ValueError('steps must be an integer from 10 to 1000')
-        if type(obs_dim) is not int or not 64 <= obs_dim <= 8192:
-            raise ValueError('obs_dim must be an integer from 64 to 8192')
         self.base = create_env(seed=self.seed, steps=steps, red=red)
         self.env = BlueFixedActionWrapper(self.base, pad_spaces=True)
-        self.obs_dim = obs_dim
+        commands = sorted({label.replace('[Invalid] ', '').split()[0]
+                           for a in BLUE_NAMES for label in self.env.action_labels(a)
+                           if not label.startswith('[Padding]')})
+        max_hosts = max(len(self.env.hosts(a)) for a in BLUE_NAMES)
+        self.encoders = {a: StructuredObservation(self.env.hosts(a), commands, max_hosts,
+                                                steps, int(a.rsplit('_',1)[1]), observation) for a in BLUE_NAMES}
+        self.step_count = 0
         self.raw = {}
         self.current = {}
         self._started = False
@@ -39,7 +43,16 @@ class Cage4Adapter:
             labels = tuple(map(str, self.env.action_labels(agent)))
             if mask.ndim != 1 or len(mask) != len(labels) or not mask.any():
                 raise RuntimeError(f'Invalid official action mask for {agent}')
-            result[agent] = PolicyInput(encode(observation, self.obs_dim), mask, labels)
+            # During multi-tick actions the simulator ignores newly chosen actions.
+            # Expose only Sleep so ignored choices cannot contaminate PPO likelihoods.
+            if name(observation.get('success', 'UNKNOWN')) == 'IN_PROGRESS':
+                mask[:] = False
+                mask[labels.index('Sleep')] = True
+            encoder = self.encoders[agent]
+            vector = encoder.encode(observation, self.step_count)
+            graph = encoder.graph()
+            graph['action_mask'] = mask.copy()
+            result[agent] = PolicyInput(vector, mask, labels, graph)
         self.raw = raw
         self.current = result
         return result
@@ -50,6 +63,10 @@ class Cage4Adapter:
         raw, info = self.env.reset(seed=episode_seed)
         if set(raw) != set(BLUE_NAMES):
             raise RuntimeError('Expected exactly five Blue agents')
+        self.step_count = 0
+        for a,encoder in self.encoders.items():
+            rng_seed = int(np.random.SeedSequence([episode_seed,encoder.agent_index,encoder.config['seed']]).generate_state(1)[0])
+            encoder.reset(rng_seed)
         result = self._inputs(raw, info)
         self._started = True
         self._done = False
@@ -69,11 +86,15 @@ class Cage4Adapter:
                 raise ValueError(f'Illegal action index: {agent}/{index}')
             normalized[agent] = int(index)
         raw, rewards, terminated, truncated, info = self.env.step(normalized)
+        self.step_count += 1
         active = tuple(self.current)
         next_inputs = self._inputs(raw, info)
         self._done = not next_inputs or all(
             terminated.get(agent, False) or truncated.get(agent, False) for agent in active)
         return next_inputs, {a: float(v) for a, v in rewards.items()}, terminated, truncated
+
+    def observation_schema(self):
+        return {a:e.schema() for a,e in self.encoders.items()}
 
     def inputs(self, values):
         """Compatibility for v0.3.0 runners; reset/step now track state themselves."""

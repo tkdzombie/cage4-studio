@@ -9,7 +9,7 @@ from cage4_baselines.algorithms import create
 @unittest.skipUnless(importlib.util.find_spec('CybORG'), 'real CybORG runtime required')
 class EnvironmentTests(unittest.TestCase):
     def setUp(self):
-        self.env = Cage4Adapter(seed=42, steps=10, obs_dim=64)
+        self.env = Cage4Adapter(seed=42, steps=10)
 
     def test_public_reset_step_tracks_state_automatically(self):
         inputs = self.env.reset()
@@ -20,7 +20,7 @@ class EnvironmentTests(unittest.TestCase):
             inputs, rewards, terminated, truncated = self.env.step(actions)
             self.assertIs(inputs, self.env.current)
             self.assertEqual(set(rewards), set(actions))
-            self.assertTrue(all(x.observation.shape==(64,) for x in inputs.values()))
+            self.assertTrue(all(len(x.observation)==self.env.observation_schema()[a]["dimension"] for a,x in inputs.items()))
 
     def test_rejects_missing_agent_and_masked_action_before_execution(self):
         inputs = self.env.reset()
@@ -45,3 +45,14 @@ class EnvironmentTests(unittest.TestCase):
         else:self.fail('Episode did not complete')
         with self.assertRaises(RuntimeError):self.env.step({})
         self.assertEqual(len(self.env.reset()),5)
+
+    def test_busy_actions_only_allow_sleep_and_schema_stable_across_seeds(self):
+        inputs = self.env.reset()
+        dimensions = {a:x.observation.shape for a,x in inputs.items()}
+        for a,x in self.env.reset(43).items(): self.assertEqual(x.observation.shape, dimensions[a])
+        from types import SimpleNamespace
+        raw = {a:{'success':SimpleNamespace(name='IN_PROGRESS')} for a in inputs}
+        info = {a:{'action_mask':self.env.env.action_mask(a)} for a in inputs}
+        for x in self.env._inputs(raw,info).values():
+            self.assertEqual(int(x.mask.sum()),1)
+            self.assertEqual(x.labels[int(np.flatnonzero(x.mask)[0])],'Sleep')

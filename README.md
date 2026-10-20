@@ -16,7 +16,7 @@ cage4-research/cage4-baselines/src/cage4_baselines/
 
 ```python
 ALGORITHM = "mappo"
-EPISODES = 2
+EPISODES = None
 SEED = 101
 ```
 
@@ -54,3 +54,7 @@ SEED = 101
 MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版本。默认业务cost预算24.748%，由20校准+20独立验证场景确定，是本项目研究协议。五算法已验证真实训练、权重保存及独立评估；未声称论文规模收敛/性能或理论安全保证，当前不支持断点续训。第三方许可与本仓库授权边界见 [NOTICE](NOTICE.md)。
 
 历史源码、旧入口、交付过程报告和重复说明不放在当前项目中；需要追溯时查Git历史。日常启动入口关闭字节码缓存写入，实验结果保存在源码目录外。
+
+结构化输入、正式训练批次和最近5次运行的永久删除规则见 [观测与训练协议](docs/OBSERVATIONS_zh.md)。
+
+研究实现核验见 [Baseline审计](docs/BASELINE_AUDIT_zh.md)：明确作者核心、CAGE4适配和仍需完成的正式多seed实验，不能将短程验收当作论文性能复现。

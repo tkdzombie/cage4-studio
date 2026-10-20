@@ -62,7 +62,7 @@ def run(config, runs_root, mode='train', checkpoint=None, seeds=None, adapter_fa
             from torch.utils.tensorboard import SummaryWriter
             tb = SummaryWriter(str(writer.path/'tensorboard'))
         random.seed(c['seed']); np.random.seed(c['seed'])
-        adapter = adapter_factory(c['seed'],c['steps'],c['red'],c['obs_dim'])
+        adapter = adapter_factory(c['seed'],c['steps'],c['red'])
         inputs = adapter.reset(c['seed'])
         policy = create(c['algorithm'],inputs,c)
         if checkpoint:
