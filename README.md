@@ -16,7 +16,7 @@
 
 ## PyCharm 最简单启动
 
-打开远程项目根目录 `run_baseline.py`，顶部选算法和训练轮数，然后右键 **Run**，无需填写运行参数。自己的算法从相邻的 `my_algorithm.py` 开始，入口选择 `my_algorithm` 即可。见 [三步运行说明](docs/START_SIMPLE_zh.md)。
+打开远程项目代码目录 `src/cage4_baselines/experiments/run_baseline.py`，顶部选算法和训练轮数，然后右键 **Run**，无需填写运行参数。自己的算法写在 `src/cage4_baselines/algorithms/my_algorithm.py`，入口选择 `my_algorithm` 即可。见 [三步运行说明](docs/START_SIMPLE_zh.md)。
 
 ## 论文 Baseline 与业务安全约束
 
@@ -76,7 +76,7 @@ bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
 
 本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程 Git 研究工作副本 `$HOME/cage4-research/cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
 
-在 PyCharm 标记 `src` 为 Sources Root；`protocol` 是相邻的共享包。独立环境已安装这两个本地 editable 包。共享 `.run/Train Actor Critic.run.xml` 作为运行配置参考；若 JetBrains 版本没有自动识别，手动创建 Python module 配置：模块 `cage4_baselines`，参数 `train --config configs/train/actor_critic.yaml --runs $HOME/cage4-experiments`，工作目录为项目根目录。PyCharm 参数框请将 --runs 改为远程绝对路径，或直接使用共享 .run 配置；不要依赖终端的 $HOME 展开。无需修改 Client。
+日常训练直接右键运行 `src/cage4_baselines/experiments/run_baseline.py`；现有服务器 Conda Python 和独立研究解释器都可用。配置、预算和外部作者源码路径自动定位，无需手填模块参数。批量实验和独立评估继续使用文档中的 CLI。
 
 ## 安装、升级、回滚、扩展
 

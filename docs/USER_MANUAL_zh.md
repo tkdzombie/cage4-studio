@@ -1,4 +1,4 @@
-> PyCharm日常启动请先看 [简明使用说明](START_SIMPLE_zh.md)：打开 `run_baseline.py` 右键 Run 即可，无需手动配置模块与参数。下面保留完整管理与批量实验说明。
+> PyCharm日常启动请先看 [简明使用说明](START_SIMPLE_zh.md)：打开 `src/cage4_baselines/experiments/run_baseline.py` 右键 Run 即可，无需手动配置模块与参数。下面保留完整管理与批量实验说明。
 
 # CAGE4 Studio 科研系统使用说明书
 

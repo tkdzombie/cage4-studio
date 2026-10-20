@@ -27,3 +27,9 @@
 - 新增 `cage4-baselines/run_baseline.py`：右键 Run/Debug，不依赖工作目录、额外参数或研究包安装；兼容已有服务器 Conda Python。
 - 新增 `my_algorithm.py` 可运行 MAPPO 扩展模板与算法工厂接入；沿用真实环境、记录、预算和checkpoint协议。
 - 保留现有批量CLI与独立研究解释器，不改动用户已修改的配置或运行配置。
+
+## 研究目录整理
+
+- 启动入口移动到 `cage4-baselines/src/cage4_baselines/experiments/run_baseline.py`，自定义算法移动到 `algorithms/my_algorithm.py`；删除旧位置，避免多入口。
+- 删除过时的四个 .run 配置及三个平铺重复 YAML；保留按职责分目录的配置、依赖与兼容导入。
+- 启动仍不需要额外参数，环境/配置按脚本位置自动定位；自定义算法使用包内导入。
