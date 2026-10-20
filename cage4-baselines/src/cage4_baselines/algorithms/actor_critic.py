@@ -1,47 +1,4 @@
-"""Extensible registry. IPPO and MAPPO are deliberately unimplemented."""
-import importlib
-import numpy as np
-REGISTRY = {}
-def register(name):
-    def decorate(cls):
-        if name in REGISTRY:
-            raise ValueError('Duplicate algorithm: '+name)
-        REGISTRY[name] = cls
-        return cls
-    return decorate
-
-def create(name, inputs, config):
-    for module in config.get('plugins',[]):
-        importlib.import_module(module)  # explicit trusted research configuration only
-    if name not in REGISTRY:
-        raise ValueError(f'Unknown/unimplemented algorithm {name}; available: {sorted(REGISTRY)}')
-    return REGISTRY[name](inputs,config)
-
-@register('random')
-class RandomPolicy:
-    def __init__(self, inputs, config):
-        self.rng = np.random.default_rng(config['seed'])
-    def act(self, inputs, training=False):
-        return {a:int(self.rng.choice(np.flatnonzero(x.mask))) for a,x in inputs.items()}
-    def observe(self, rewards):
-        pass
-    def update(self):
-        return {}
-    def checkpoint(self):
-        return {}
-    def load(self, data):
-        pass
-
-@register('sleep')
-class SleepPolicy(RandomPolicy):
-    def act(self, inputs, training=False):
-        result = {}
-        for a,x in inputs.items():
-            candidates = [i for i,v in enumerate(x.labels) if x.mask[i] and v.startswith('Sleep')]
-            if not candidates:
-                raise RuntimeError('Official Sleep action missing')
-            result[a] = candidates[0]
-        return result
+from .registry import register
 
 @register('actor_critic')
 class ActorCriticPolicy:

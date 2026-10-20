@@ -1,0 +1,14 @@
+# Key versions observed on the existing Mac Studio; NOT a complete lock.
+# Do not reinstall the working environment merely to align this list.
+setuptools==80.9.0
+numpy==1.26.4
+PyYAML==6.0.1
+torch==2.2.0
+gym==0.26.2
+gymnasium==0.28.1
+ray[rllib]==2.8.1
+pyarrow==25.0.1
+pettingzoo==1.24.3
+streamlit==1.52.2
+pandas==2.3.3
+tensorboard==2.15.2

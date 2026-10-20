@@ -12,6 +12,8 @@
 
 已实查服务器旧环境和用户原 GitHub 仓库。迁移不覆盖 `$HOME/cage4-studio`；原数据、环境、CybORG 源码都保留。旧项目源码在 Git 历史与 `legacy/` 留存。没有替用户选定 LICENSE，见 [NOTICE](NOTICE.md)。
 
+先阅读 **[系统使用说明书](docs/USER_MANUAL_zh.md)**，查文件用 **[项目架构与放置规范](docs/PROJECT_STRUCTURE_zh.md)**，研究项目入口见 **[cage4-baselines/README](cage4-baselines/README.md)**。
+
 ## 现有 Mac Studio 快速使用（远程终端）
 
 以下使用当前远程用户的 $HOME 路径；SSH 主机与用户须按自己的配置填写。公开源码不包含个人连接信息。
@@ -21,7 +23,7 @@ cd $HOME/cage4-research
 export CAGE4_PYTHON="$HOME/cage4-research-env/bin/python"
 bash ops/check.sh
 bash ops/research.sh train \
-  --config cage4-baselines/configs/actor_critic.yaml \
+  --config cage4-baselines/configs/train/actor_critic.yaml \
   --runs $HOME/cage4-experiments
 ```
 
@@ -29,13 +31,13 @@ bash ops/research.sh train \
 
 ```bash
 bash ops/research.sh evaluate \
-  --config cage4-baselines/configs/actor_critic.yaml \
+  --config cage4-baselines/configs/evaluate/actor_critic.yaml \
   --checkpoint $HOME/cage4-experiments/<RUN>/checkpoints/episode_000030.pt \
   --seeds 1001 1002 1003 \
   --runs $HOME/cage4-experiments
 ```
 
-评估的 episodes 也来自 YAML；可以复制配置并将 episodes 改成 5。Random/Sleep 用对应 YAML，evaluate 时不传 checkpoint，使用相同 seeds、步长和红队进行对照。训练每个 seed 独立运行、独立目录；评估不更新参数。Ctrl+C 在步间安全停止，网页刷新或关闭不会停止研究进程。
+独立评估 YAML 默认每 seed 运行 5 Episode，可复制配置修改。Random/Sleep 用对应 YAML，evaluate 时不传 checkpoint，使用相同 seeds、步长和红队进行对照。训练每个 seed 独立运行、独立目录；评估不更新参数。Ctrl+C 在步间安全停止，网页刷新或关闭不会停止研究进程。
 
 ## 本地 MacBook Air
 
@@ -53,7 +55,7 @@ bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
 
 本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程 Git 研究工作副本 `$HOME/cage4-research/cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
 
-在 PyCharm 标记 `src` 为 Sources Root；`protocol` 是相邻的共享包。独立环境已安装这两个本地 editable 包。共享 `.run/Train Actor Critic.run.xml` 作为运行配置参考；若 JetBrains 版本没有自动识别，手动创建 Python module 配置：模块 `cage4_baselines.runner`，参数 `train --config configs/actor_critic.yaml --runs $HOME/cage4-experiments`，工作目录为项目根目录。无需修改 Client。
+在 PyCharm 标记 `src` 为 Sources Root；`protocol` 是相邻的共享包。独立环境已安装这两个本地 editable 包。共享 `.run/Train Actor Critic.run.xml` 作为运行配置参考；若 JetBrains 版本没有自动识别，手动创建 Python module 配置：模块 `cage4_baselines`，参数 `train --config configs/train/actor_critic.yaml --runs $HOME/cage4-experiments`，工作目录为项目根目录。PyCharm 参数框请将 --runs 改为远程绝对路径，或直接使用共享 .run 配置；不要依赖终端的 $HOME 展开。无需修改 Client。
 
 ## 安装、升级、回滚、扩展
 

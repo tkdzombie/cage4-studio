@@ -6,5 +6,8 @@ name = "cage4-baselines"
 version = "0.3.0"
 requires-python = ">=3.10,<3.12"
 dependencies = ['cage4-protocol==0.3.0', 'PyYAML>=6,<7', 'numpy>=1.26,<2', 'torch>=2.2,<2.3']
+[project.scripts]
+cage4 = "cage4_baselines.experiments.runner:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

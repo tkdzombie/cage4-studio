@@ -1,5 +1,7 @@
 # 日常研究与扩展
 
+先看 [项目架构](PROJECT_STRUCTURE_zh.md) 和 [系统使用说明书](USER_MANUAL_zh.md)。
+
 在远程 PyCharm 中修改 `cage4-baselines/src/cage4_baselines` 和 configs；Server 不导入算法，Client 不参与训练。配置 schema 在 config.py；未知字段和范围错误直接拒绝。避免在网页边调参数边认为已启动的实验发生变化，每个 run 保存其实际配置。
 
 一个完整流程：复制 YAML → 修改 seed/episodes/steps → train → 找 checkpoint → 独立 evaluate → 用相同 seeds 跑 Random/Sleep → 在网页对比。以多训练 seed × 独立评估 seed 做科研结论；交付中的两轮/三 seed 只验证代码可运行，不是收敛或优越性证据。
@@ -11,6 +13,8 @@ train 的 `--runs` 创建唯一实验目录；checkpoint_every 和最终 Episode
 独立评估只允许 Actor-Critic 搭配已保存 checkpoint，检查 encoder、algorithm 和维度。只加载可信本地权重。修改 obs_dim 或动作空间会被拒绝。跨不同 steps/red 的评估虽可运行，但必须在论文或报告中标明配置差异；不要把训练和评估曲线合并解释。
 
 ## 添加算法
+
+内置实现按模块放在 algorithms/，方法契约见 algorithms/base.py；新的实现不要堆到一个平铺文件里。
 
 例如新建可导入 Python 包 `my_cage4_policy`，在 YAML `plugins: [my_cage4_policy]` 显式启用；将包安装到研究解释器，或添加到研究项目的源路径。插件只由研究进程加载，不由网页导入。配置是可信代码入口，不能接受未审查的网上模块名称。
 
