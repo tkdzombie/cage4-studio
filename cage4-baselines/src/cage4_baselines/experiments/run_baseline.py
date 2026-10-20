@@ -2,6 +2,9 @@
 from pathlib import Path
 import sys
 
+# 日常训练不在源码目录生成 __pycache__ / .pyc。
+sys.dont_write_bytecode = True
+
 # ===== 日常只改这三项，然后右键运行本文件 =====
 ALGORITHM = "mappo"  # ippo / mappo / happo / mappo_lagrangian / macpo / my_algorithm
 EPISODES = 2        # 首次先跑 2 回合；正式训练再按实验设计增大
