@@ -194,11 +194,12 @@ class AuthorBaseline:
                 factor *= array(torch.exp(self.logp(a, b) - old_logp)).reshape(T, 1, 1)
             values = {}
             for key, value in raw.items():
-                if key in ('action_mu', 'action_std', 'cost_loss') and self.name == 'macpo':
-                    continue  # Upstream cost_loss log aliases reward value_loss.
+                if key in ('action_mu', 'action_std', 'cost_loss', 'lam', 'nu') and self.name == 'macpo':
+                    continue  # Upstream aliases cost_loss and never assigns lam/nu.
                 scalar = float(value.detach().cpu()) if torch.is_tensor(value) else float(np.asarray(value).mean())
                 if not np.isfinite(scalar): raise FloatingPointError(f'{a}/{key} is not finite')
                 values[key] = scalar
+            if self.name=='macpo':values.update(trainer.last_step_diagnostics)
             for target, source in [('actor_loss', 'policy_loss'), ('critic_loss', 'value_loss'), ('entropy', 'dist_entropy')]:
                 if source in values: values[target] = values[source]
             for key, old in before.items():

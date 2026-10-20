@@ -26,7 +26,11 @@ class ConstrainedTests(unittest.TestCase):
                     self.assertAlmostEqual(values['budget_episode'],.95)
                     self.assertGreaterEqual(values['actual_policy_kl'],-1e-6)
                     self.assertGreaterEqual(values['cost_value_mse_after_update'],0)
-                    if name=='macpo':self.assertLessEqual(values['actual_policy_kl'],.01001)
+                    if name=='macpo':
+                        self.assertLessEqual(values['actual_policy_kl'],.01001)
+                        self.assertGreaterEqual(values['cpo_cost_dual'],0)
+                        self.assertNotIn('lam',values)
+                        self.assertNotIn('nu',values)
                 cp=train/'checkpoints/episode_000002.pt'
                 payload=torch.load(cp,weights_only=True)
                 for mode in ('stochastic','greedy'):

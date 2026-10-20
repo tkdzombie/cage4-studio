@@ -67,6 +67,17 @@ def classes():
             return logp, entropy, dist.probs, torch.zeros_like(dist.probs)
 
     class CategoricalMACPO(R_MACTRPO_CPO):
+        def trpo_update(self, *args, **kwargs):
+            result = super().trpo_update(*args, **kwargs)
+            # Upstream train_info initializes lam/nu to zero but never assigns
+            # the solver outputs. Capture the actual returned dual variables.
+            self.last_step_diagnostics = dict(
+                cpo_reward_dual=float(torch.as_tensor(result[13]).detach()),
+                cpo_cost_dual=float(torch.as_tensor(result[14]).detach()))
+            if not all(torch.isfinite(torch.tensor(v)) for v in self.last_step_diagnostics.values()):
+                raise FloatingPointError('Nonfinite CPO dual diagnostics')
+            return result
+
         def kl_divergence(self, obs, rnn_states, action, masks, available_actions,
                           active_masks, new_actor, old_actor):
             return categorical_kl(new_actor, old_actor, obs, available_actions)
