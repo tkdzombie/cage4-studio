@@ -57,10 +57,10 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
   --budget cage4-baselines/configs/safety/availability-v1.json \
   --upstreams "$HOME/cage4-upstreams" --runs "$HOME/cage4-experiments"
 
-# 使用同一个训练配置和真实 checkpoint 做独立评估。
+# 使用该次运行保存的实际训练配置和真实 checkpoint 做独立评估。
 # <RUN> 替换成上一步输出的目录名。
 "$PY" -m cage4_baselines.paper evaluate \
-  --config cage4-baselines/configs/paper/mappo.yaml \
+  --config "$HOME/cage4-experiments/<RUN>/config.json" \
   --budget cage4-baselines/configs/safety/availability-v1.json \
   --upstreams "$HOME/cage4-upstreams" --runs "$HOME/cage4-experiments" \
   --checkpoint "$HOME/cage4-experiments/<RUN>/checkpoints/episode_002000.pt" \
@@ -104,3 +104,5 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 参考：[MAPPO 作者代码](https://github.com/marlbenchmark/on-policy)、[HAPPO 论文](https://arxiv.org/abs/2109.11251)、[MACPO/MAPPO-L 论文](https://arxiv.org/abs/2110.02793)、[CAGE4 官方环境](https://github.com/cage-challenge/cage-challenge-4)、[CAGE4 H-MARL 研究](https://arxiv.org/abs/2410.17351)。
 
 默认磁盘仅保留最近5次运行，网页仅显示最新一次；自动清理和结构化输入版本见 [OBSERVATIONS_zh.md](OBSERVATIONS_zh.md)。验收请使用临时目录，不能占用正式实验保留名额。
+
+若通过run_baseline.py覆盖了轮数/seed，评估应读取该次运行保存的config.json，而不是未经覆盖的原始YAML。两者配置不同会被严格校验拒绝。
