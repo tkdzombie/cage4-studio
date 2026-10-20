@@ -1,83 +1,65 @@
-# CAGE4 Studio Complete v0.1.4
+# CAGE4 Studio 0.3.0 · 独立科研工程
 
-**适用设备**：Mac Studio M3 Ultra（96GB），macOS / Apple Silicon (arm64)，Python 3.10。
+研究项目决定算法，Server 读取实验，Client 连接网页。面向 macOS / Apple Silicon / Toolbox 远程 PyCharm；非官方 CAGE 工具，不声称训练收敛或达到挑战基准。
 
-**定位**：CybORG + CAGE Challenge 4 的单机可视化实验工作台（非官方）。以浏览器作为图形界面，PyCharm 负责写代码和远程调试，SSH 隧道负责安全访问。**不是**已签名的 `.app`，也不是可以替代 PyCharm 的 IDE。
+| 部分 | 目录 | 职责 |
+|---|---|---|
+| cage4-baselines | `cage4-baselines/` | 环境适配、YAML、train/evaluate、Random/Sleep、五策略 Actor-Critic、插件注册 |
+| Studio Server | `server/` | 只读曲线、五 Agent 指标、真实接口拓扑、红队记录、Episode/Step 回放、对比 |
+| macOS Client | `client/` | 本地 SSH 转发与浏览器；不启动 PyCharm或服务器 |
+| 共享协议 | `protocol/` | cage4.run/1 原子文件格式、进程身份与状态 |
+| 运维 | `ops/` | 服务管理、研究入口、验收与打包 |
 
-## 从 GitHub 获取
+已实查服务器旧环境和用户原 GitHub 仓库。迁移不覆盖 `$HOME/cage4-studio`；原数据、环境、CybORG 源码都保留。旧项目源码在 Git 历史与 `legacy/` 留存。没有替用户选定 LICENSE，见 [NOTICE](NOTICE.md)。
 
-本仓库是 v0.1.4 源码整理版，私有仓库需要有访问权限的 GitHub 账号。
+## 现有 Mac Studio 快速使用（远程终端）
 
-```bash
-git clone https://github.com/tkdzombie/cage4-studio.git
-cd cage4-studio
-chmod +x *.sh
-```
-
-全新部署执行 `bash install.sh`；已有环境执行 `bash check.sh`，通过后执行 `bash start.sh`。本机访问 http://127.0.0.1:8501，远程连接见中文连接手册。
-
-仓库不包含虚拟环境、官方 CybORG 仓库副本、训练数据、日志或模型权重。文档中的 `YOUR_USER` 和服务器地址需替换为自己的设置。
-
-## 已有环境升级
-
-如果已有环境输出 `WRAPPER STEP PASS: 5 blue observations`、`SMOKE TEST PASS: 93 hosts 92 interface links`。则可复用环境，仅更新程序代码。
-
-在 Mac Studio 上用新版 ZIP **覆盖程序代码**（不会删除现有 `.conda-env/`、`.miniforge3/`、`cage-challenge-4/` 或 `runs/`）：
+以下使用当前远程用户的 $HOME 路径；SSH 主机与用户须按自己的配置填写。公开源码不包含个人连接信息。
 
 ```bash
-mkdir -p ~/cage4-studio
-unzip -o ~/Downloads/CAGE4_Studio_M3_Ultra_Complete_v0.1.4.zip -d ~/cage4-studio
-cd ~/cage4-studio
-chmod +x *.sh
-bash check.sh
-bash stop.sh
-bash start.sh
+cd $HOME/cage4-studio-releases/CAGE4_Studio_v0.3.0
+bash ops/check.sh
+bash ops/research.sh train \
+  --config cage4-baselines/configs/actor_critic.yaml \
+  --runs $HOME/cage4-experiments
 ```
 
-如果 ZIP 不在 `~/Downloads/`，把上述命令改成 ZIP 实际路径。**不要在已安装成功的机器上再次执行大规模 `pip install`**。上面的 `stop.sh` 只关闭控制台和 TensorBoard，不会直接终止训练子进程。升级可视化代码前，建议先从界面停止训练或等待训练完成。
-
-Mac Studio 本机浏览器访问 `http://127.0.0.1:8501`（TensorBoard：6006）。从其他电脑访问时必须用 SSH 隧道，见 `docs/02_PyCharm与本地连接.md`。
-
-## 文件导览
-
-| 位置 | 用途 |
-|---|---|
-| `00_先读我.txt` | 最短命令和注意事项 |
-| `docs/01_服务器部署与升级.md` | 全新安装、旧版升级、验收 |
-| `docs/02_PyCharm与本地连接.md` | SSH / PyCharm / 浏览器自动打开 |
-| `docs/03_控制台与实验流程.md` | 配置、训练、拓扑、导出、实验科学性 |
-| `docs/04_故障排查.md` | 你之前遇到的 404 / 依赖冲突 / 导入失败 / pkg_resources / 镜像慢 |
-| `docs/05_文件结构及安全.md` | 各文件、数据存储和备份、安全边界 |
-| `install.sh` | 全新安装；对**已成功安装**的环境优先走免重装复用路径 |
-| `check.sh` | 无网络依赖的当前环境自检与官方仿真冒烟测试 |
-| `start.sh` / `stop.sh` | 启动/关闭 Web UI 和 TensorBoard |
-| `repair_cyborg_import.sh` | 原项目可导入路径缺失时注册 `.pth` 并做测试 |
-| `requirements-core.txt` | 锁定经过冲突修复的主要兼容版本 |
-| `local/connect.py` | **在本地电脑**使用的 SSH 隧道与浏览器启动器 |
-| `cage4studio/ui.py` | Streamlit 控制台 |
-| `cage4studio/train.py` | 五蓝队 Actor-Critic 研究基线 |
-| `cage4studio/topology.py` | 真实接口链路、Red Session 可视化 |
-| `smoke_test.py` | 官方接口验证 |
-
-## 全新安装（没有任何已有环境时）
+从命令输出找到本次 run 目录，再使用其 checkpoint。示例中的 `<RUN>` 必须换成真实目录名：
 
 ```bash
-mkdir -p ~/cage4-studio
-unzip -o ~/Downloads/CAGE4_Studio_M3_Ultra_Complete_v0.1.4.zip -d ~/cage4-studio
-cd ~/cage4-studio
-chmod +x *.sh
-PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple bash install.sh
+bash ops/research.sh evaluate \
+  --config cage4-baselines/configs/actor_critic.yaml \
+  --checkpoint $HOME/cage4-experiments/<RUN>/checkpoints/episode_000030.pt \
+  --seeds 1001 1002 1003 \
+  --runs $HOME/cage4-experiments
 ```
 
-安装器需要网络和 Xcode Command Line Tools，不用 `sudo`。会克隆官方 CAGE Challenge 4 源码（源码和大型依赖**不包含在 ZIP 中**），并执行真实仿真测试。已知依赖修复包含：`ray[rllib]==2.8.1`、`gymnasium==0.28.1`、`setuptools==80.9.0` 及 `CybORG` 源码路径注册。
+评估的 episodes 也来自 YAML；可以复制配置并将 episodes 改成 5。Random/Sleep 用对应 YAML，evaluate 时不传 checkpoint，使用相同 seeds、步长和红队进行对照。训练每个 seed 独立运行、独立目录；评估不更新参数。Ctrl+C 在步间安全停止，网页刷新或关闭不会停止研究进程。
 
-第一次实验建议 Episodes=2、Steps=10、Seed=7629、Device=cpu。成功产出 `runs/.../metrics.jsonl` 和 `tensorboard/` 后，再进行长时间训练。
+## 本地 MacBook Air
 
-## 已验证与边界
+双击下载包中的 `CAGE4 Studio Client.app`，建立本地 18501 → Mac Studio 8501 隧道并打开网页。应用无 Python 运行依赖；需现有 SSH 密钥登录、已确认主机指纹、服务器服务已启动。个人应用未签名/公证，按 macOS 的“右键 → 打开”流程允许使用。首次 SSH 配置只能在确认服务器指纹后执行，客户端不会绕过主机校验。
 
-- **用户服务器已验证**：CybORG 导入、五蓝队 Wrapper 一次动作、93 主机 / 92 接口链路的仿真 smoke test。
-- **本 ZIP 发布前静态验证**：源文件 Python 编译、Shell 语法、拓扑/配置单元测试、压缩包完整性。
-- **仍需实际验证**：这版界面的全链路训练与 PyCharm 本地连接；具体训练效果尚未证明。软件内 Actor-Critic 是教学型独立策略梯度基线，**不是** MAPPO / PPO / 正式 CAGE 4 成绩。
-- **安全**：默认只监听 `127.0.0.1`，请用 SSH 端口转发访问。不要对公网直接打开 8501 / 6006，也不要将 Ground Truth 作为模型 Observation。
+客户端退出后 SSH 隧道继续运行，重开复用同一 ControlMaster。停止隧道用本地终端，在客户端 app 所在目录执行：
 
-官方项目：https://github.com/cage-challenge/cage-challenge-4
+```bash
+bash "CAGE4 Studio Client.app/Contents/Resources/connect.sh" stop
+```
+
+需要 TensorBoard 转发时用 `bash client/connect.sh start studio.example researcher 18502 16006`，网页从本地 18502 打开，TensorBoard 从本地 16006 打开。默认不转发 TensorBoard。不同参数建立不同隧道；对应 stop 必须使用同一组参数。客户端不自动打开 PyCharm，也不要求安装第二套 PyCharm。
+
+## Toolbox 远程 PyCharm
+
+本地 Toolbox → Remote Development → SSH `researcher@studio.example`，打开远程版本目录下的 `cage4-baselines`（不是网页、不是本地解压目录）。本次提供独立轻量研究解释器 `$HOME/cage4-research-env/bin/python`，它复用旧环境的大依赖，研究代码不在 Server 中运行。
+
+在 PyCharm 标记 `src` 为 Sources Root；`protocol` 是相邻的共享包。独立环境已安装这两个本地 editable 包。共享 `.run/Train Actor Critic.run.xml` 作为运行配置参考；若 JetBrains 版本没有自动识别，手动创建 Python module 配置：模块 `cage4_baselines.runner`，参数 `train --config configs/actor_critic.yaml --runs $HOME/cage4-experiments`，工作目录为项目根目录。无需修改 Client。
+
+## 安装、升级、回滚、扩展
+
+- [本地/远程分步安装和回滚](docs/INSTALL_zh.md)
+- [日常研究与添加算法](docs/RESEARCH_zh.md)
+- [版本化文件协议与安全边界](docs/PROTOCOL.md)
+- [真实代码审查与迁移依据](docs/AUDIT.md)
+- [验证结果与兼容性限制](docs/VALIDATION.md)
+
+M3 Ultra 不等于 CUDA GPU。默认 CPU；MPS 只加速支持的 PyTorch 算子，不加速整个仿真。IPPO/MAPPO 尚未实现，注册表对这些名字明确报错。Actor-Critic 是 Monte Carlo REINFORCE + value baseline，不是 PPO。当前不支持断点续训；旧 BlueFlat checkpoint 不兼容新 observation encoder。完整训练、测试、可运行包与部署状态以验证文档为准。
