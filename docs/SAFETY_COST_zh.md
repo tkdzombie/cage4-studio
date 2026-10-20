@@ -1,8 +1,10 @@
-# CAGE4 业务可用性 cost 与预算（v1）
+# CAGE4 业务可用性 cost 与预算
 
 ## 结论与适用范围
 
-采用**任务阶段加权的 Green 业务失败比例**作为共享团队 cost。默认主预算 `d=0.2474800289213457`；严格档 `0.22319008002191076`、宽松档 `0.2586557460721998`，用于三档敏感性分析。不要将百分数 24.748 直接填入 [0,1] 的 rate 字段。
+采用**任务阶段加权的 Green 业务失败比例**作为共享团队 cost。新实验默认主预算 **d=0.05**，严格档 **0.03**、宽松档 **0.10**，使用 `configs/safety/availability-target-v2.json`。这是更严格的研究目标，可行性尚未确立；完整选择依据和使用方式见 [训练与预算说明](TRAINING_TARGETS_zh.md)。
+
+以下 v1 校准数据保留为历史依据，旧实验继续使用原预算，不能覆盖或追改。旧主预算为0.2474800289213457，严格档0.22319008002191076、宽松档0.2586557460721998。cost数学定义不变，变化的是预算研究设计。百分比须换为[0,1]的rate。
 
 这是本项目新增的约束实验协议。CAGE4 官方提供 reward 与业务优先级，没有给出此 CMDP cost 或这些预算；MACPO 论文也没有给出 CAGE4 专用阈值。预算已经在当前锁定的真实 CybORG、FiniteStateRedAgent、500 配置步上校准，不能直接移用于其他红队、horizon 或 reward 定义。
 
@@ -35,7 +37,7 @@ J_C(episode) = sum(c_t) / T
 
 全局业务 cost 只产生一个标量，safe trainer 给五个 agent 同一团队约束。网络 Ground Truth 与 Green 详细事件用于研究者采集，不输入 Blue actor；actor 仍只接收本 agent Blue observation。MAPPO/IPPO/HAPPO 也被同样测量 cost，但不把它加入无约束算法损失。
 
-## 不看最终测试集的预算校准
+## 历史 v1：不看最终测试集的预算校准
 
 预先固定参考策略为 Sleep（全部合法 Sleep 动作），使用独立 seed：
 
@@ -82,7 +84,7 @@ cost_sum = sum(c_t)
 episode_budget = d * T
 ```
 
-本版本 T=499 时，主预算约为123.4925；20步 smoke 实际19步时约4.7021。不得把0.24748直接与累计几十/上百的 cost 比较。作者 trainer 使用 gamma=.99 的 cost advantage 和 `(sum_cost - sum_budget)*(1-gamma)` 约束 surrogate；这是作者实现惯例与我们有限时域率预算的桥接，不代表精确有限时域约束的理论保证。最终仍用未折扣 episode mean cost/超限率判断。安全失败率低但 reward 很差的策略不能只凭 cost 宣称防御有效。
+新目标 T=499 时，主预算为24.95；严格14.97、宽松49.90。历史v1主预算约123.4925；其20步smoke实际19步时约4.7021。不得把0.24748直接与累计几十/上百的 cost 比较。作者 trainer 使用 gamma=.99 的 cost advantage 和 `(sum_cost - sum_budget)*(1-gamma)` 约束 surrogate；这是作者实现惯例与我们有限时域率预算的桥接，不代表精确有限时域约束的理论保证。最终仍用未折扣 episode mean cost/超限率判断。安全失败率低但 reward 很差的策略不能只凭 cost 宣称防御有效。
 
 选择敏感性档位：复制算法 YAML，设置 `budget_level: strict` 或 `loose`（默认 main），训练和评估使用同一配置。所有方法在同档位共用数据定义/阈值。不要修改 JSON 的校准结果来切换档位。
 
@@ -101,3 +103,5 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 本次 CybORG commit 为 `8c3c50ca54b176c2de199847944e8dcc035497e3`，奖励源码 SHA256 为 `cdcdf1bf9b2f6b30e6bfc859ac85b9475ecf8ed30f7bb86f6c3101233ea3b37f`。Python3.10.22、NumPy1.26.4。CybORG/Gym/NumPy 版本变化可能改变随机序列和动作执行结果；单凭相同整数 seed 不保证跨版本完全复现。
 
 训练记录保存版本、每步成本、Episode mean/sum、辅助请求加权失败率、预算、超限量与超限指示。Server 只读这些文件；不计算或修改策略，不执行 checkpoint。
+
+新目标文件采用 `cage4.budget-target/1`，将“cost参考测量已完成”和“目标可行性已证明”分开记录。`status=specified`、`feasibility=not_established`；不会把Sleep参考策略不满足新目标冒充校准失败，也不会将新目标标作已证明可行。旧`cage4.budget-calibration/1`仍可读取。

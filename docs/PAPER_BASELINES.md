@@ -31,7 +31,7 @@ on-policy 使用 MIT。MACPO 锁定版本的 LICENSE 含未解决的合并标记
 
 ## 业务 cost 与预算
 
-完整依据、公式、独立校准数据、三档预算见 [SAFETY_COST_zh.md](SAFETY_COST_zh.md)。默认主预算为 0.2474800289213457，500 配置步在锁定 CybORG 版本实际执行 499 次 transition。算法比较批次内平均episode cost，预算是 `rate × 平均episode长度`，不是直接将 rate 当累计 cost 阈值。
+完整依据、公式、独立校准数据、三档预算见 [SAFETY_COST_zh.md](SAFETY_COST_zh.md)。新实验默认主预算为 0.05（严格0.03、宽松0.10；目标可行性尚未确立），500 配置步在锁定 CybORG 版本实际执行 499 次 transition。算法比较批次内平均episode cost，预算是 `rate × 平均episode长度`，不是直接将 rate 当累计 cost 阈值。
 
 ## 在远程 Mac Studio / PyCharm 终端运行
 
@@ -48,13 +48,13 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 # 验证已经安装的真实环境及全部五算法训练/评估。
 "$PY" ops/validate_paper_baselines.py \
   --runs /tmp/cage4-validation/runs --upstreams "$HOME/cage4-upstreams" \
-  --budget cage4-baselines/configs/safety/availability-v1.json \
+  --budget cage4-baselines/configs/safety/availability-target-v2.json \
   --output /tmp/cage4-validation/report.json
 
 # 正式训练（2000 episode；这是起始预算，不代表已收敛）。
 "$PY" -m cage4_baselines.paper train \
   --config cage4-baselines/configs/paper/mappo.yaml \
-  --budget cage4-baselines/configs/safety/availability-v1.json \
+  --budget cage4-baselines/configs/safety/availability-target-v2.json \
   --upstreams "$HOME/cage4-upstreams" --runs "$HOME/cage4-experiments"
 
 # 使用该次运行保存的实际JSON配置与checkpoint做独立评估。
@@ -87,7 +87,8 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 |---|---|
 | `envs/` | 唯一真实仿真适配与 Blue observation 编码 |
 | `configs/paper/` | 五个算法的统一训练 profile |
-| `configs/safety/availability-v1.json` | 固定预算、独立校准与验证数据（无个人信息） |
+| `configs/safety/availability-target-v2.json` | 新研究目标5%/3%/10%，保留参考测量和可行性状态 |
+| `configs/safety/availability-v1.json` | 历史校准预算及原始参考数据，旧实验继续使用 |
 | `safety/costs.py` | 业务事件到标量 cost；与 actor 输入隔离 |
 | `safety/calibrate.py` | 固定参考策略和独立 seed 校准 |
 | `paper/upstreams.json`、`upstreams.py` | 作者源码版本锁、完整性与加载 |
@@ -106,3 +107,5 @@ export PYTHONPATH="$PWD/protocol:$PWD/cage4-baselines/src"
 若通过run_baseline.py覆盖了轮数/seed，评估应使用ops/evaluate_baseline.py读取该次运行保存的config.json，而不是未经覆盖的原始YAML。两者配置不同会被严格校验拒绝。
 
 记录配置的JSON科学计数法必须用json.loads读取，避免YAML 1.1将5e-05解析为字符串。直接模块CLI的--config适用于YAML；记录配置的评估统一使用上述脚本，不修改正在运行的策略源码或放宽来源校验。
+
+训练回合数、return口径与官方参考见 [TRAINING_TARGETS_zh.md](TRAINING_TARGETS_zh.md)。新训练保存`source/cage4_baselines/`，独立评估入口优先使用该次运行的源码快照；仍严格核验依赖版本、源码、配置和预算SHA，不允许用新预算评估旧权重并伪称原协议结果。快照是科研溯源数据，随整次实验按保留策略清理。

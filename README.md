@@ -60,3 +60,5 @@ MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版�
 研究实现核验见 [Baseline审计](docs/BASELINE_AUDIT_zh.md)：明确作者核心、CAGE4适配和仍需完成的正式多seed实验，不能将短程验收当作论文性能复现。
 
 Mac Studio 多核参数、50回合checkpoint及可复现吞吐测试见 [多核训练](docs/PERFORMANCE_zh.md)。MAPPO支持同步多环境采样；自定义算法保留单进程断点调试。
+
+预算默认5%（严格3%/宽松10%）、return判断及官方训练/评估设置，见 [训练与预算说明](docs/TRAINING_TARGETS_zh.md)。

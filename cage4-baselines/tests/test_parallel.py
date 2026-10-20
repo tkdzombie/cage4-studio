@@ -50,7 +50,8 @@ class ParallelTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   c=self.config();c['record_replay']=False
   with tempfile.TemporaryDirectory() as t:
-   folder=run(c,t,Path.home()/'cage4-upstreams',root/'configs/safety/availability-v1.json',smoke=True)
+   folder=run(c,t,Path.home()/'cage4-upstreams',root/'configs/safety/availability-target-v2.json',smoke=True)
+   self.assertTrue((folder/'source/cage4_baselines/paper/__main__.py').is_file())
    rows=[json.loads(p.read_text()) for p in sorted((folder/'metrics').rglob('*.json'))]
    self.assertEqual([r['episode'] for r in rows if r['optimizer_update']],[4])
    cp3=torch.load(folder/'checkpoints/episode_000003.pt',weights_only=True)
@@ -61,7 +62,7 @@ class ParallelTests(unittest.TestCase):
    self.assertTrue(all(v['actor_changed'] and v['critic_changed'] for v in rows[-1]['losses'].values()))
    # More validation episodes than worker slots exercises the second collection
    # chunk; eval must neither accumulate training batches nor change actor weights.
-   evaluation=run(c,Path(t)/'evaluation',Path.home()/'cage4-upstreams',root/'configs/safety/availability-v1.json',
+   evaluation=run(c,Path(t)/'evaluation',Path.home()/'cage4-upstreams',root/'configs/safety/availability-target-v2.json',
                   mode='evaluate',checkpoint=folder/'checkpoints/episode_000004.pt',seeds=[54001,54002,54003],smoke=True)
    self.assertEqual(json.loads((evaluation/'evaluation.json').read_text())['n_seeds'],3)
  def test_worker_failure_is_reported_and_workers_close(self):
