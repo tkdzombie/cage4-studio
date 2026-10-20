@@ -8,7 +8,7 @@ from cage4_server.topology import dot_graph
 
 st.set_page_config(page_title='CAGE4 Studio',page_icon='🛡️',layout='wide')
 st.title('CAGE4 Studio · 实验观测台')
-st.caption('0.4.0 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
+st.caption('0.4.1 · 只读实验记录 · 算法、训练与评估在独立 PyCharm 研究项目中运行')
 roots=[Path(x).expanduser() for x in os.environ.get('CAGE4_RUN_ROOTS','runs').split(os.pathsep) if x]
 all_runs=reader.runs(roots)
 if not all_runs:

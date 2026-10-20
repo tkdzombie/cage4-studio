@@ -17,6 +17,15 @@ class StoreTests(unittest.TestCase):
    self.assertFalse(list(w.path.glob('.*')))
    with self.assertRaises(FileExistsError):w.record('metrics',1,10,{})
    w.finish();self.assertEqual(run_status(w.path)['state'],'finished')
+ def test_latest_run_uses_time_not_directory_prefix(self):
+  with tempfile.TemporaryDirectory() as t:
+   root=Path(t)
+   old=root/'acceptance_old';new=root/'20261020_new'
+   for path,stamp in ((old,100),(new,200)):
+    path.mkdir()
+    atomic_json(path/'manifest.json',{'schema':'cage4.run/1'})
+    atomic_json(path/'status.json',{'state':'finished','started_at':stamp})
+   self.assertEqual(reader.runs([root]),[new.resolve(),old.resolve()])
  def test_reused_pid(self):
   with tempfile.TemporaryDirectory() as t:
    atomic_json(Path(t)/'status.json',{'state':'running','pid':os.getpid(),'identity':'another process'})

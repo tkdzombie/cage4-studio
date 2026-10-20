@@ -10,25 +10,19 @@ APP="$OUT/CAGE4 Studio Client.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$HERE/connect.sh" "$APP/Contents/Resources/"
 printf '%s\n' "$HOST" "$REMOTE_USER" "$LOCAL_PORT" > "$APP/Contents/Resources/settings.local"
-cat > "$APP/Contents/MacOS/launcher" <<'LAUNCH'
-#!/bin/bash
-set -euo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"
-LOG="$HOME/Library/Logs/CAGE4-Studio-Client.log"
-mkdir -p "$(dirname "$LOG")"
-bash "$HERE/../Resources/connect.sh" start >>"$LOG" 2>&1 || {
- osascript -e 'display dialog "CAGE4 连接失败。请检查 SSH 密钥、主机指纹和服务器服务。日志：~/Library/Logs/CAGE4-Studio-Client.log" buttons {"好的"}'
- exit 1
-}
-LAUNCH
+# Native executable: Finder/LaunchServices must launch a real macOS application.
+xcrun clang -fobjc-arc -framework Cocoa -mmacosx-version-min=11.0 \
+  "$HERE/launcher.m" -o "$APP/Contents/MacOS/launcher"
 chmod +x "$APP/Contents/MacOS/launcher" "$APP/Contents/Resources/connect.sh"
 /usr/bin/python3 - "$APP/Contents/Info.plist" <<'PLIST'
 import plistlib,sys
 with open(sys.argv[1],'wb') as f:
  plistlib.dump(dict(CFBundleName='CAGE4 Studio Client',CFBundleDisplayName='CAGE4 Studio Client',
  CFBundleIdentifier='org.cage4studio.localclient',CFBundleExecutable='launcher',
- CFBundlePackageType='APPL',CFBundleShortVersionString='0.3.0',CFBundleVersion='3',
+ CFBundlePackageType='APPL',CFBundleShortVersionString='0.4.1',CFBundleVersion='41',
  LSMinimumSystemVersion='11.0',LSUIElement=True),f)
 PLIST
 plutil -lint "$APP/Contents/Info.plist"
+codesign --force --sign - "$APP"
+codesign --verify --strict "$APP"
 echo "$APP"

@@ -82,7 +82,7 @@ $HOME/cage4-studio/.conda-env/bin/python ops/service.py rollback \
 
 ## 本地客户端（本地 MacBook Air 终端）
 
-在源码包内 `bash client/build_mac_app.sh <输出目录> <主机> <远程用户> [本地端口]` 可重建原生 .app。这三个连接参数仅写入生成的 .app/Contents/Resources/settings.local，不写入公共源码。也可直接使用独立 Client ZIP。它只用系统 ssh/curl/open，严格校验主机密钥，使用用户已有 ~/.ssh 配置和密钥，不内嵌私钥/密码；ControlMaster socket 位于用户私有 Application Support 目录。
+在源码包内 `bash client/build_mac_app.sh <输出目录> <主机> <远程用户> [本地端口]` 可重建原生 .app。这三个连接参数仅写入生成的 .app/Contents/Resources/settings.local，不写入公共源码。也可直接使用独立 Client ZIP。运行时只用系统原生启动程序和 ssh/curl/open，构建时需要 Xcode Command Line Tools（clang），严格校验主机密钥，使用用户已有 ~/.ssh 配置和密钥，不内嵌私钥/密码；ControlMaster socket 位于用户私有 Application Support 目录。
 
 通用源码默认使用 SSH 别名 cage4-studio 和当前用户名；请显式传入实际主机和远程用户，或构建时配置。私人交付的 Client.app 可单独预置连接参数。服务器必须先运行。默认本地端口为 18501，保留旧客户端占用的 8501；若 18501 已被其他程序占用，新建隧道会失败，不会借用未知监听端口。日志在 `~/Library/Logs/CAGE4-Studio-Client.log`。status/stop 见 README。自建 SSH 别名可以在源码 connect.sh 的参数传入；自定义端口/身份文件放进现有 ~/.ssh/config。
 
@@ -108,3 +108,5 @@ cd CAGE4_Studio_v0.4.0
 ```
 
 安装器先检查运行依赖，自动备份现有 plist，再切换服务；失败自动还原。记录它输出的 Backup 路径；rollback 命令仍如上。只更换0.4 Server 能增加成本曲线/回报口径选择；不改变 TensorBoard、实验数据或训练算法。研究解释器若 editable 指向现有 Git 工作副本，更新 Git 后即可使用源码；若需要刷新包版本元数据，在该独立解释器中执行 `python -m pip install --no-deps --no-build-isolation -e protocol -e cage4-baselines`。不要在原始部署环境里卸载研究依赖。
+
+本地客户端建议安装在 `~/Applications/CAGE4 Studio Client.app`，不要放在临时解压/交付目录中。当前原生启动程序使用本地 ad-hoc 签名；连接设置仅存在生成的 App 中。默认网页地址是 `http://127.0.0.1:18501`，127.0.0.1本身不代表具体服务，端口必须正确。网页按实验真实开始时间排列，最新训练优先。

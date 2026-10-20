@@ -25,3 +25,5 @@ jobs:
           python -m cage4_baselines.paper --help
           python -m cage4_baselines.safety.calibrate --help
           python -m py_compile cage4-baselines/src/cage4_baselines/experiments/run_baseline.py cage4-baselines/src/cage4_baselines/algorithms/my_algorithm.py
+      - name: Build and verify native macOS client
+        run: bash client/build_mac_app.sh "$RUNNER_TEMP/cage4-client" example.invalid researcher 18501
