@@ -28,6 +28,33 @@ def finite_tree(value):
     return True
 
 
+def feasibility_admission(path,runtime,contract):
+    """The learning screen requires complete, independently checked evidence."""
+    from ot_task_confirmation import upper_bound
+    from cage4_baselines.safety.continuity_contract import evaluate
+    path=Path(path).expanduser().resolve()
+    state=json.loads((path/'state.json').read_text())
+    manifest=json.loads((path/'manifest.json').read_text())
+    rows=json.loads((path/'results.json').read_text())
+    source=Path(__file__).with_name('ot_patrol_probe.py')
+    if state['state']!='phase_complete' or manifest.get('scope')!='confirmation' or manifest.get('alpha')!=.025:
+        raise RuntimeError('Completed fixed-policy risk confirmation required')
+    if manifest['runtime']!=runtime or hashlib.sha256(source.read_bytes()).hexdigest()!=manifest['script_sha256']:
+        raise RuntimeError('Feasibility source/runtime drift')
+    expected=list(range(56001,56129))
+    if manifest['plan']!=[['analyse',s] for s in expected] or [r['seed'] for r in rows]!=expected:
+        raise RuntimeError('Confirmation scenario plan incomplete or changed')
+    for row in rows:
+        if row['mode']!='analyse' or row['transitions']!=499 or type(row['event']) is not int or row['event'] not in (0,1) or not math.isfinite(row['return_']):
+            raise RuntimeError('Invalid completed confirmation episode')
+        if evaluate(row['ot'],contract)['episode_violation'] is not bool(row['event']):
+            raise RuntimeError('Confirmation measurement/event mismatch')
+    events=sum(r['event'] for r in rows);upper=upper_bound(events,len(rows),.025)
+    if upper>.05:raise RuntimeError('Risk evidence does not support the fixed 5% requirement')
+    return dict(control=str(path),episodes=len(rows),events=events,one_sided_97_5_upper=upper,
+                note='Feasible rule witness only, not a learning-policy safety certificate')
+
+
 def admission(preflight,runtime,contract_sha,upstreams):
     import ast
     import torch
@@ -94,6 +121,7 @@ def worker(task_path):
                   event_budget=risk,actor_information='own legal Blue vector only',
                   critic_information='concatenated legal Blue vectors only',scope=task['scope'])
     metadata['runner_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    metadata['evaluation_seeds']=task.get('evaluation_seeds',[54001,54002])
     write(folder/'manifest.json',metadata);write(folder/'status.json',dict(state='running',**metadata))
     records=[];updates=[];train_seeds=[100000+c['seed']*100000+i for i in range(c['episodes'])]
     def collect(seed,training,greedy=False):
@@ -138,7 +166,7 @@ def worker(task_path):
         if identities()!=before:raise RuntimeError('Checkpoint roundtrip changed weights')
         evaluations=[]
         for greedy in (False,True):
-            for seed in (54001,54002):
+            for seed in metadata['evaluation_seeds']:
                 if seed in train_seeds:raise ValueError('Train/development overlap')
                 evaluations.append(collect(seed,False,greedy))
                 if identities()!=before:raise RuntimeError('Evaluation changed model weights')
@@ -179,7 +207,9 @@ def supervise(args):
                 raise RuntimeError('Existing OT task must be resolved first')
         runtime=runtime_identity()
         contract_sha=hashlib.sha256((project/'cage4-baselines/configs/safety/ot-continuity-v1.json').read_bytes()).hexdigest()
-        review=admission(args.preflight_control,runtime,contract_sha,args.upstreams) if args.scope=='bounded-pilot' else dict(scope='integration_only')
+        review=admission(args.preflight_control,runtime,contract_sha,args.upstreams) if args.scope!='integration' else dict(scope='integration_only')
+        if args.scope=='learning-screen':
+            review['feasibility']=feasibility_admission(args.feasibility_control,runtime,json.loads((project/'cage4-baselines/configs/safety/ot-continuity-v1.json').read_text()))
         root.mkdir(mode=0o700)
         source=root/'source';source.mkdir()
         for path,name in [(project/'cage4-baselines/src/cage4_baselines','cage4_baselines'),(project/'protocol/cage4_protocol','cage4_protocol')]:
@@ -196,9 +226,10 @@ def supervise(args):
                 if stopped or (root/'STOP').exists():raise InterruptedError('STOP before task')
                 c=load_config(project/'cage4-baselines/configs/paper'/(algorithm+'.yaml'))
                 c.update(episodes=args.episodes,rollout_episodes=args.batch,num_envs=1,record_replay=False)
+                c['seed']=args.training_seed
                 folder=runs/(root.name+'-'+algorithm)
                 result=root/(algorithm+'.result.json');task=root/(algorithm+'.task.json')
-                write(task,dict(control=str(root),config=c,scope=args.scope,runtime=runtime,upstreams=str(args.upstreams.expanduser()),run=str(folder),result=str(result),supervisor_pid=os.getpid(),supervisor_identity=state['identity']))
+                write(task,dict(control=str(root),config=c,scope=args.scope,runtime=runtime,upstreams=str(args.upstreams.expanduser()),run=str(folder),result=str(result),supervisor_pid=os.getpid(),supervisor_identity=state['identity'],evaluation_seeds=list(range(54001,54021)) if args.scope=='learning-screen' else [54001,54002]))
                 with (root/(algorithm+'.log')).open('w') as log:
                     child=subprocess.Popen([sys.executable,str(root/'runner.py'),'--task',str(task)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                     identity=process_identity(child.pid);started=time.monotonic();sent=None
@@ -226,11 +257,16 @@ if __name__=='__main__':
     p.add_argument('--upstreams',type=Path,default=Path.home()/'cage4-upstreams')
     p.add_argument('--episodes',type=int,default=32)
     p.add_argument('--batch',type=int,default=16)
-    p.add_argument('--scope',choices=('integration','bounded-pilot'),default='bounded-pilot')
+    p.add_argument('--scope',choices=('integration','bounded-pilot','learning-screen'),default='bounded-pilot')
     p.add_argument('--preflight-control',type=Path)
+    p.add_argument('--feasibility-control',type=Path)
+    p.add_argument('--training-seed',type=int,choices=(101,102,103),default=101)
     a=p.parse_args()
     if a.task:worker(a.task)
     else:
-        if a.control is None or not 2<=a.episodes<=128 or not 2<=a.batch<=16:p.error('Require new control and bounded episodes/batch')
-        if a.scope=='bounded-pilot' and a.preflight_control is None:p.error('Bounded pilot requires passed integration control')
+        maximum=256 if a.scope=='learning-screen' else 128
+        if a.control is None or not 2<=a.episodes<=maximum or not 2<=a.batch<=16:p.error('Require new control and bounded episodes/batch')
+        if a.scope!='integration' and a.preflight_control is None:p.error('Passed integration control required')
+        if a.scope=='learning-screen' and (a.feasibility_control is None or a.episodes!=256 or a.batch!=16):p.error('Learning screen requires passed risk witness, 256 episodes and batch 16')
+        if a.scope!='learning-screen' and a.training_seed!=101:p.error('Pilot/integration seed is fixed at 101')
         supervise(a)
