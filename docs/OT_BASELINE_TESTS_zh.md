@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+最新仅[MACPO单训练seed修复](MACPO_HUBER_REPAIR_zh.md)：确认作者Huber忽略大负残差，实际修复、17项相关测试及新版本真实集成通过；从头seed101训练1792回合/112批已启动。不再训练MAPPO-L或复核其他训练seed。下面旧版本的“工程通过”只覆盖当时测试，不能解释为完整实现无缺陷。
+
 最新进展见[两项有界机制比较](OT_MECHANISM_CANDIDATES_zh.md)：原两算法完整阶段与匹配诊断已结束，仅改变初始lambda或fraction的两个候选已在新control启动。算法实现摘要及OT合同保持原值，论文验收尚未通过。
 
 学习阶段最新状态和后续有界诊断见[OT学习诊断](OT_LEARNING_DIAGNOSTICS_zh.md)。MAPPO-L的256回合与40例评估完成，两模式均20/20事件；MACPO仍运行。当前没有宣布收敛或论文验收，以下启动/pilot表述为历史记录。

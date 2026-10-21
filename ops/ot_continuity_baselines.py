@@ -144,6 +144,24 @@ def mechanism_admission(plan_path,runtime,contract_sha):
                      scope='Exactly two bounded mechanism candidates, not final configuration selection or qualification')
 
 
+def reward_value_diagnostics(policy,history,reward_scale):
+    import numpy as np
+    import torch
+    from cage4_baselines.safety.continuity_events import undiscounted_returns
+    T=len(history);terminal=[h[3] for h in history]
+    central=np.concatenate([h[0][policy.names[0]]['cent'] for h in history])
+    zero=np.zeros((T,policy.args.recurrent_N,policy.args.hidden_size),np.float32)
+    masks=np.ones((T,1),np.float32);result={}
+    for a in policy.names:
+        target=np.asarray(undiscounted_returns([h[1][a]*reward_scale for h in history],terminal),np.float32)
+        before=np.concatenate([h[0][a]['value'] for h in history]).reshape(-1)
+        with torch.no_grad():after=policy.policies[a].get_values(central,zero,masks).numpy().reshape(-1)
+        result[a]=dict(reward_mc_mse_before=float(np.mean((target-before)**2)),reward_mc_mse_after=float(np.mean((target-after)**2)),
+                       reward_mc_bias_before=float(np.mean(target-before)),reward_mc_bias_after=float(np.mean(target-after)),
+                       reward_target_variance=float(np.var(target)),reward_negative_tail_before_fraction=float(np.mean(target-before < -policy.trainers[a].huber_delta)))
+    return result
+
+
 def worker(task_path):
     task=json.loads(Path(task_path).read_text());control=Path(task['control'])
     sys.path.insert(0,str(control/'source'))
@@ -170,13 +188,15 @@ def worker(task_path):
     policy=FiniteHorizonBaseline(env.reset(),c,task['upstreams'],risk)
     runtime=runtime_identity()
     if runtime!=task['runtime']:raise RuntimeError('Frozen runtime mismatch')
-    metadata=dict(schema='cage4.ot-baseline-test/1',variant=algorithm+'-ot-finite-horizon-v1',config=c,
+    metadata=dict(schema='cage4.ot-baseline-test/1',variant=task.get('variant',algorithm+'-ot-finite-horizon-v1'),config=c,
                   contract_sha256=contract_sha,runtime=runtime,upstream=policy.provenance,
                   pid=os.getpid(),identity=process_identity(os.getpid()),training_enabled=True,
-                  reward_returns='undiscounted MC, scale .01',cost_returns='undiscounted first-hit MC',
+                  reward_returns='undiscounted MC, scale '+str(c['reward_scale']),cost_returns='undiscounted first-hit MC',
                   event_budget=risk,actor_information='own legal Blue vector only',
                   critic_information='concatenated legal Blue vectors only',scope=task['scope'])
     if task.get('mechanism_plan_sha256'):metadata['mechanism_plan_sha256']=task['mechanism_plan_sha256']
+    if task.get('stream_training'):metadata['training_record_format']='JSONL each episode; JSON snapshot at batch updates'
+    if task.get('reward_diagnostics'):metadata['reward_critic_diagnostics']=True
     metadata['runner_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     metadata['evaluation_seeds']=task.get('evaluation_seeds',[54001,54002])
     write(folder/'manifest.json',metadata);write(folder/'status.json',dict(state='running',**metadata))
@@ -212,14 +232,23 @@ def worker(task_path):
     try:
         for episode,seed in enumerate(train_seeds,1):
             row=collect(seed,True);records.append(row)
-            write(folder/'training.json',records)
+            if task.get('stream_training'):
+                with (folder/'training.jsonl').open('a') as stream:stream.write(json.dumps(row)+'\n')
+                if episode%c['rollout_episodes']==0 or episode==c['episodes']:write(folder/'training.json',records)
+            else:write(folder/'training.json',records)
             if mechanism_plan is not None and episode==16:
                 basis=json.loads((Path(mechanism_plan['baseline_control'])/'state.json').read_text())
                 original=next(r for r in basis['results'] if r['algorithm']==algorithm)
                 if records!=json.loads((Path(original['run'])/'training.json').read_text())[:16]:raise RuntimeError('Single-variable candidate did not reproduce initial frozen-policy batch')
                 write(folder/'first-batch-equivalence.json',dict(episodes=16,exact_rows_match=True))
             if episode%c['rollout_episodes']==0 or episode==c['episodes']:
-                metrics=policy.update(.01);updates.append(dict(episode=episode,metrics=metrics));write(folder/'updates.json',updates)
+                history=policy.history
+                metrics=policy.update(c['reward_scale'])
+                if task.get('reward_diagnostics'):
+                    for a,extra in reward_value_diagnostics(policy,history,c['reward_scale']).items():metrics[a].update(extra)
+                del history
+                if not finite_tree(metrics):raise FloatingPointError('Nonfinite extended optimizer diagnostics')
+                updates.append(dict(episode=episode,metrics=metrics));write(folder/'updates.json',updates)
             if episode%50==0:save_checkpoint(episode)
         save_checkpoint(c['episodes'])
         before=identities();loaded=torch.load(checkpoint,map_location='cpu',weights_only=True)

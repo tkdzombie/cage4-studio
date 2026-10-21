@@ -67,6 +67,10 @@ def classes():
             return logp, entropy, dist.probs, torch.zeros_like(dist.probs)
 
     class CategoricalMACPO(R_MACTRPO_CPO):
+        def cal_value_loss(self,values,value_preds_batch,return_batch,active_masks_batch):
+            from .value_loss import symmetric_value_loss
+            return symmetric_value_loss(self,values,value_preds_batch,return_batch,active_masks_batch)
+
         def trpo_update(self, *args, **kwargs):
             result = super().trpo_update(*args, **kwargs)
             # Upstream train_info initializes lam/nu to zero but never assigns
