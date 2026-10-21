@@ -92,6 +92,58 @@ def admission(preflight,runtime,contract_sha,upstreams):
                 gate='engineering acceptance only; feasibility and safety not established')
 
 
+def validate_mechanism_plan(plan):
+    expected={'mappo_lagrangian':{'lamda_lagr':100.},'macpo':{'fraction_coef':1.}}
+    if plan.get('schema')!='cage4.ot-mechanism-candidates/1':raise ValueError('Unknown candidate plan')
+    if (plan.get('training_seed'),plan.get('episodes'),plan.get('batch'))!=(101,256,16):raise ValueError('Fixed 256/16/101 comparison required')
+    if plan.get('evaluation_seeds')!=list(range(54001,54021)):raise ValueError('Fixed development scenes required')
+    if plan.get('max_candidates')!=2 or plan.get('max_seconds_per_task')!=21600 or plan.get('minimum_free_gib')!=30:raise ValueError('Candidate/resource bounds changed')
+    candidates=plan.get('candidates',{})
+    if set(candidates)!=set(expected):raise ValueError('Exactly two named candidates required')
+    for name,overrides in expected.items():
+        item=candidates[name]
+        if any(type(v) not in (int,float) for v in item.get('hyperparameters',{}).values()):raise ValueError('Numeric candidate values required')
+        if item.get('hyperparameters')!=overrides or not item.get('question'):raise ValueError('Only the preregistered single-variable comparisons are permitted')
+    return plan
+
+
+def mechanism_admission(plan_path,runtime,contract_sha):
+    """Require the completed unchanged baseline and matched frozen diagnostic."""
+    plan_path=Path(plan_path).expanduser().resolve()
+    plan=validate_mechanism_plan(json.loads(plan_path.read_text()))
+    baseline=Path(plan['baseline_control']).expanduser().resolve()
+    diagnostic=Path(plan['diagnostic_control']).expanduser().resolve()
+    state=json.loads((baseline/'state.json').read_text())
+    ds=json.loads((diagnostic/'state.json').read_text())
+    dp=json.loads((diagnostic/'plan.json').read_text())
+    if state['state']!='phase_complete' or state['scope']!='learning-screen' or ds!={'state':'phase_complete','environment_transitions':3992,'parameter_updates':0}:
+        raise RuntimeError('Completed baseline and bounded diagnostic required')
+    if hashlib.sha256((baseline/'contract.json').read_bytes()).hexdigest()!=contract_sha or dp['runtime']!=runtime or dp['contract_sha256']!=contract_sha:
+        raise RuntimeError('Basis source or contract drift')
+    checked=[]
+    for algorithm in ('mappo_lagrangian','macpo'):
+        original=next(r for r in state['results'] if r['algorithm']==algorithm)
+        run=Path(original['run']);manifest=json.loads((run/'manifest.json').read_text())
+        evidence=json.loads((diagnostic/(algorithm+'.result.json')).read_text())
+        if manifest['runtime']!=runtime or manifest['config']['seed']!=101 or manifest['config']['episodes']!=256 or manifest['config']['rollout_episodes']!=16 or manifest['event_budget']!=.05:
+            raise RuntimeError('Fixed baseline comparison changed')
+        if not original['checkpoint_roundtrip'] or not original['evaluation_weights_unchanged'] or original['training_episodes']!=256 or original['updates']!=16:
+            raise RuntimeError('Baseline engineering result incomplete')
+        expected={(mode,seed) for mode in ('stochastic','greedy') for seed in range(54001,54021)}
+        if {(r['mode'],r['seed']) for r in original['evaluations']}!=expected or len(original['evaluations'])!=40:raise RuntimeError('Both baseline modes required')
+        if evidence['runtime']!=runtime or evidence['contract_sha256']!=contract_sha or evidence['environment_transitions']!=1996 or evidence['parameter_updates']!=0 or not evidence['all_weights_unchanged'] or not evidence['checkpoint_and_optimizers_finite'] or not finite_tree(evidence):
+            raise RuntimeError('Invalid matched diagnostic')
+        checkpoint_sha=hashlib.sha256(Path(original['checkpoint']).read_bytes()).hexdigest()
+        if evidence['checkpoint_sha256']!=checkpoint_sha or [r['seed'] for r in evidence['episodes']]!=list(range(54001,54005)):
+            raise RuntimeError('Diagnostic policy or scene drift')
+        for row in evidence['episodes']:
+            ref=next(r for r in original['evaluations'] if r['mode']=='stochastic' and r['seed']==row['seed'])
+            if not row['matches_frozen_evaluation'] or (row['return_'],row['event'],row['first_hit'])!=(ref['return_'],ref['event_cost'],ref['first_hit']):raise RuntimeError('Diagnostic replay mismatch')
+        checked.append(dict(algorithm=algorithm,checkpoint_sha256=checkpoint_sha))
+    return plan,dict(plan_sha256=hashlib.sha256(plan_path.read_bytes()).hexdigest(),baseline_control=str(baseline),diagnostic_control=str(diagnostic),checkpoints=checked,
+                     scope='Exactly two bounded mechanism candidates, not final configuration selection or qualification')
+
+
 def worker(task_path):
     task=json.loads(Path(task_path).read_text());control=Path(task['control'])
     sys.path.insert(0,str(control/'source'))
@@ -106,7 +158,11 @@ def worker(task_path):
     from cage4_baselines.safety.costs import measure
     from cage4_protocol.store import process_identity
     contract=json.loads((control/'contract.json').read_text());contract_sha=hashlib.sha256((control/'contract.json').read_bytes()).hexdigest()
-    c=task['config'];algorithm=c['algorithm'];folder=Path(task['run']);folder.mkdir(exist_ok=False)
+    c=task['config'];algorithm=c['algorithm'];mechanism_plan=None
+    if task['scope']=='mechanism-screen':
+        plan_path=control/'mechanism-plan.json';mechanism_plan=validate_mechanism_plan(json.loads(plan_path.read_text()))
+        if hashlib.sha256(plan_path.read_bytes()).hexdigest()!=task['mechanism_plan_sha256'] or any(c['hyperparameters'].get(k)!=v for k,v in mechanism_plan['candidates'][algorithm]['hyperparameters'].items()):raise RuntimeError('Frozen candidate plan/config mismatch')
+    folder=Path(task['run']);folder.mkdir(exist_ok=False)
     def identities():return {a:{k:fingerprint(getattr(p,k)) for k in ('actor','critic','cost_critic')} for a,p in policy.policies.items()}
     random.seed(c['seed']);np.random.seed(c['seed']);torch.manual_seed(c['seed']);torch.set_num_threads(c['torch_threads'])
     env=Cage4Adapter(c['seed'],500,observation=c['observation'],include_graph=False)
@@ -120,6 +176,7 @@ def worker(task_path):
                   reward_returns='undiscounted MC, scale .01',cost_returns='undiscounted first-hit MC',
                   event_budget=risk,actor_information='own legal Blue vector only',
                   critic_information='concatenated legal Blue vectors only',scope=task['scope'])
+    if task.get('mechanism_plan_sha256'):metadata['mechanism_plan_sha256']=task['mechanism_plan_sha256']
     metadata['runner_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     metadata['evaluation_seeds']=task.get('evaluation_seeds',[54001,54002])
     write(folder/'manifest.json',metadata);write(folder/'status.json',dict(state='running',**metadata))
@@ -156,6 +213,11 @@ def worker(task_path):
         for episode,seed in enumerate(train_seeds,1):
             row=collect(seed,True);records.append(row)
             write(folder/'training.json',records)
+            if mechanism_plan is not None and episode==16:
+                basis=json.loads((Path(mechanism_plan['baseline_control'])/'state.json').read_text())
+                original=next(r for r in basis['results'] if r['algorithm']==algorithm)
+                if records!=json.loads((Path(original['run'])/'training.json').read_text())[:16]:raise RuntimeError('Single-variable candidate did not reproduce initial frozen-policy batch')
+                write(folder/'first-batch-equivalence.json',dict(episodes=16,exact_rows_match=True))
             if episode%c['rollout_episodes']==0 or episode==c['episodes']:
                 metrics=policy.update(.01);updates.append(dict(episode=episode,metrics=metrics));write(folder/'updates.json',updates)
             if episode%50==0:save_checkpoint(episode)
@@ -208,7 +270,10 @@ def supervise(args):
         runtime=runtime_identity()
         contract_sha=hashlib.sha256((project/'cage4-baselines/configs/safety/ot-continuity-v1.json').read_bytes()).hexdigest()
         review=admission(args.preflight_control,runtime,contract_sha,args.upstreams) if args.scope!='integration' else dict(scope='integration_only')
-        if args.scope=='learning-screen':
+        mechanism_plan=None
+        if args.scope=='mechanism-screen':
+            mechanism_plan,review['mechanism']=mechanism_admission(args.mechanism_plan,runtime,contract_sha)
+        if args.scope in ('learning-screen','mechanism-screen'):
             review['feasibility']=feasibility_admission(args.feasibility_control,runtime,json.loads((project/'cage4-baselines/configs/safety/ot-continuity-v1.json').read_text()))
         root.mkdir(mode=0o700)
         source=root/'source';source.mkdir()
@@ -217,6 +282,7 @@ def supervise(args):
         shutil.copyfile(__file__,root/'runner.py')
         shutil.copyfile(project/'cage4-baselines/configs/safety/ot-continuity-v1.json',root/'contract.json')
         write(root/'admission.json',review)
+        if mechanism_plan is not None:shutil.copyfile(args.mechanism_plan,root/'mechanism-plan.json')
         state=dict(schema='cage4.ot-campaign/1',state='running',pid=os.getpid(),identity=process_identity(os.getpid()),started_at=time.time(),scope=args.scope,results=[])
         def save(**values):
             state.update(values,heartbeat=time.time(),free_gib=shutil.disk_usage(runs).free/1024**3);write(root/'state.json',state)
@@ -227,9 +293,10 @@ def supervise(args):
                 c=load_config(project/'cage4-baselines/configs/paper'/(algorithm+'.yaml'))
                 c.update(episodes=args.episodes,rollout_episodes=args.batch,num_envs=1,record_replay=False)
                 c['seed']=args.training_seed
+                if mechanism_plan is not None:c['hyperparameters'].update(mechanism_plan['candidates'][algorithm]['hyperparameters'])
                 folder=runs/(root.name+'-'+algorithm)
                 result=root/(algorithm+'.result.json');task=root/(algorithm+'.task.json')
-                write(task,dict(control=str(root),config=c,scope=args.scope,runtime=runtime,upstreams=str(args.upstreams.expanduser()),run=str(folder),result=str(result),supervisor_pid=os.getpid(),supervisor_identity=state['identity'],evaluation_seeds=list(range(54001,54021)) if args.scope=='learning-screen' else [54001,54002]))
+                write(task,dict(control=str(root),config=c,scope=args.scope,runtime=runtime,upstreams=str(args.upstreams.expanduser()),run=str(folder),result=str(result),supervisor_pid=os.getpid(),supervisor_identity=state['identity'],evaluation_seeds=list(range(54001,54021)) if args.scope in ('learning-screen','mechanism-screen') else [54001,54002],mechanism_plan_sha256=review.get('mechanism',{}).get('plan_sha256')))
                 with (root/(algorithm+'.log')).open('w') as log:
                     child=subprocess.Popen([sys.executable,str(root/'runner.py'),'--task',str(task)],stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
                     identity=process_identity(child.pid);started=time.monotonic();sent=None
@@ -257,16 +324,19 @@ if __name__=='__main__':
     p.add_argument('--upstreams',type=Path,default=Path.home()/'cage4-upstreams')
     p.add_argument('--episodes',type=int,default=32)
     p.add_argument('--batch',type=int,default=16)
-    p.add_argument('--scope',choices=('integration','bounded-pilot','learning-screen'),default='bounded-pilot')
+    p.add_argument('--scope',choices=('integration','bounded-pilot','learning-screen','mechanism-screen'),default='bounded-pilot')
     p.add_argument('--preflight-control',type=Path)
     p.add_argument('--feasibility-control',type=Path)
+    p.add_argument('--mechanism-plan',type=Path)
     p.add_argument('--training-seed',type=int,choices=(101,102,103),default=101)
     a=p.parse_args()
     if a.task:worker(a.task)
     else:
-        maximum=256 if a.scope=='learning-screen' else 128
+        maximum=256 if a.scope in ('learning-screen','mechanism-screen') else 128
         if a.control is None or not 2<=a.episodes<=maximum or not 2<=a.batch<=16:p.error('Require new control and bounded episodes/batch')
         if a.scope!='integration' and a.preflight_control is None:p.error('Passed integration control required')
-        if a.scope=='learning-screen' and (a.feasibility_control is None or a.episodes!=256 or a.batch!=16):p.error('Learning screen requires passed risk witness, 256 episodes and batch 16')
+        if a.scope in ('learning-screen','mechanism-screen') and (a.feasibility_control is None or a.episodes!=256 or a.batch!=16):p.error('Learning screen requires passed risk witness, 256 episodes and batch 16')
+        if a.scope=='mechanism-screen' and (a.mechanism_plan is None or a.training_seed!=101):p.error('Frozen mechanism plan and seed101 required')
+        if a.scope!='mechanism-screen' and a.mechanism_plan is not None:p.error('Mechanism plan only applies to named candidate scope')
         if a.scope!='learning-screen' and a.training_seed!=101:p.error('Pilot/integration seed is fixed at 101')
         supervise(a)
