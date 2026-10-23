@@ -1,0 +1,389 @@
+{
+  "protocol": "flat-full-actions-history-correct",
+  "run": "flat-full-actions-author-init-s321",
+  "exploration_seed": "scenario+710000 reset per episode",
+  "reference_note": "author-restricted preserves the authors original no-traffic policy action subset in the same repaired simulator",
+  "rows": [
+    {
+      "endpoint": "author-restricted",
+      "seed": 54001,
+      "return": -138.0,
+      "ticks": 499,
+      "seconds": 6.910707235336304,
+      "primitive_actions": {
+        "DeployDecoy": 158,
+        "Sleep": 1464,
+        "Remove": 303,
+        "Analyse": 526,
+        "Restore": 44
+      },
+      "free_actions": {
+        "DeployDecoy": 158,
+        "Remove": 303,
+        "Analyse": 526,
+        "Restore": 44
+      },
+      "forced_sleep": 1464,
+      "reward_components": {
+        "BlueRewardMachine": -94.0,
+        "action_cost": -44.0
+      }
+    },
+    {
+      "endpoint": "author-restricted",
+      "seed": 54002,
+      "return": -229.0,
+      "ticks": 499,
+      "seconds": 7.399309158325195,
+      "primitive_actions": {
+        "Remove": 268,
+        "DeployDecoy": 248,
+        "Analyse": 459,
+        "Sleep": 1464,
+        "Restore": 56
+      },
+      "free_actions": {
+        "Remove": 268,
+        "DeployDecoy": 248,
+        "Analyse": 459,
+        "Restore": 56
+      },
+      "forced_sleep": 1464,
+      "reward_components": {
+        "BlueRewardMachine": -173.0,
+        "action_cost": -56.0
+      }
+    },
+    {
+      "endpoint": "author-restricted",
+      "seed": 54003,
+      "return": -149.0,
+      "ticks": 499,
+      "seconds": 7.7289299964904785,
+      "primitive_actions": {
+        "Analyse": 424,
+        "DeployDecoy": 291,
+        "Remove": 270,
+        "Sleep": 1458,
+        "Restore": 52
+      },
+      "free_actions": {
+        "Analyse": 424,
+        "DeployDecoy": 291,
+        "Remove": 270,
+        "Restore": 52
+      },
+      "forced_sleep": 1458,
+      "reward_components": {
+        "BlueRewardMachine": -97.0,
+        "action_cost": -52.0
+      }
+    },
+    {
+      "endpoint": "author-restricted",
+      "seed": 54004,
+      "return": -126.0,
+      "ticks": 499,
+      "seconds": 8.405009031295776,
+      "primitive_actions": {
+        "DeployDecoy": 332,
+        "Remove": 305,
+        "Analyse": 339,
+        "Sleep": 1471,
+        "Restore": 48
+      },
+      "free_actions": {
+        "DeployDecoy": 332,
+        "Remove": 305,
+        "Analyse": 339,
+        "Restore": 48
+      },
+      "forced_sleep": 1471,
+      "reward_components": {
+        "BlueRewardMachine": -78.0,
+        "action_cost": -48.0
+      }
+    },
+    {
+      "endpoint": "initial",
+      "seed": 54001,
+      "return": -1815.0,
+      "ticks": 499,
+      "seconds": 6.720311880111694,
+      "primitive_actions": {
+        "DeployDecoy": 202,
+        "Sleep": 1455,
+        "Remove": 295,
+        "BlockTrafficZone": 21,
+        "Analyse": 456,
+        "Restore": 52,
+        "AllowTrafficZone": 14
+      },
+      "free_actions": {
+        "DeployDecoy": 202,
+        "Remove": 295,
+        "BlockTrafficZone": 21,
+        "Analyse": 456,
+        "Restore": 52,
+        "AllowTrafficZone": 14
+      },
+      "forced_sleep": 1455,
+      "reward_components": {
+        "BlueRewardMachine": -1763.0,
+        "action_cost": -52.0
+      }
+    },
+    {
+      "endpoint": "initial",
+      "seed": 54002,
+      "return": -2184.0,
+      "ticks": 499,
+      "seconds": 6.973150014877319,
+      "primitive_actions": {
+        "Remove": 308,
+        "DeployDecoy": 204,
+        "Analyse": 446,
+        "Sleep": 1459,
+        "Restore": 49,
+        "BlockTrafficZone": 15,
+        "AllowTrafficZone": 14
+      },
+      "free_actions": {
+        "Remove": 308,
+        "DeployDecoy": 204,
+        "Analyse": 446,
+        "Restore": 49,
+        "BlockTrafficZone": 15,
+        "AllowTrafficZone": 14
+      },
+      "forced_sleep": 1459,
+      "reward_components": {
+        "BlueRewardMachine": -2135.0,
+        "action_cost": -49.0
+      }
+    },
+    {
+      "endpoint": "initial",
+      "seed": 54003,
+      "return": -2135.0,
+      "ticks": 499,
+      "seconds": 7.427551984786987,
+      "primitive_actions": {
+        "Analyse": 456,
+        "DeployDecoy": 249,
+        "Remove": 266,
+        "Sleep": 1445,
+        "BlockTrafficZone": 11,
+        "Restore": 53,
+        "AllowTrafficZone": 15
+      },
+      "free_actions": {
+        "Analyse": 456,
+        "DeployDecoy": 249,
+        "Remove": 266,
+        "BlockTrafficZone": 11,
+        "Restore": 53,
+        "AllowTrafficZone": 15
+      },
+      "forced_sleep": 1445,
+      "reward_components": {
+        "BlueRewardMachine": -2082.0,
+        "action_cost": -53.0
+      }
+    },
+    {
+      "endpoint": "initial",
+      "seed": 54004,
+      "return": -2007.0,
+      "ticks": 499,
+      "seconds": 8.14641809463501,
+      "primitive_actions": {
+        "DeployDecoy": 261,
+        "Remove": 255,
+        "Analyse": 453,
+        "Sleep": 1438,
+        "BlockTrafficZone": 14,
+        "Restore": 54,
+        "AllowTrafficZone": 20
+      },
+      "free_actions": {
+        "DeployDecoy": 261,
+        "Remove": 255,
+        "Analyse": 453,
+        "BlockTrafficZone": 14,
+        "Restore": 54,
+        "AllowTrafficZone": 20
+      },
+      "forced_sleep": 1438,
+      "reward_components": {
+        "BlueRewardMachine": -1953.0,
+        "action_cost": -54.0
+      }
+    },
+    {
+      "endpoint": "final",
+      "seed": 54001,
+      "return": -188.0,
+      "ticks": 499,
+      "seconds": 7.195626974105835,
+      "primitive_actions": {
+        "DeployDecoy": 370,
+        "Sleep": 1458,
+        "Remove": 226,
+        "Analyse": 334,
+        "AllowTrafficZone": 25,
+        "Restore": 76,
+        "BlockTrafficZone": 6
+      },
+      "free_actions": {
+        "DeployDecoy": 370,
+        "Remove": 226,
+        "Analyse": 334,
+        "AllowTrafficZone": 25,
+        "Restore": 76,
+        "BlockTrafficZone": 6
+      },
+      "forced_sleep": 1458,
+      "reward_components": {
+        "BlueRewardMachine": -112.0,
+        "action_cost": -76.0
+      }
+    },
+    {
+      "endpoint": "final",
+      "seed": 54002,
+      "return": -505.0,
+      "ticks": 499,
+      "seconds": 7.203997373580933,
+      "primitive_actions": {
+        "Remove": 315,
+        "DeployDecoy": 240,
+        "Sleep": 1497,
+        "Analyse": 341,
+        "Restore": 72,
+        "AllowTrafficZone": 25,
+        "BlockTrafficZone": 5
+      },
+      "free_actions": {
+        "Remove": 315,
+        "DeployDecoy": 240,
+        "Analyse": 341,
+        "Restore": 72,
+        "AllowTrafficZone": 25,
+        "BlockTrafficZone": 5
+      },
+      "forced_sleep": 1497,
+      "reward_components": {
+        "BlueRewardMachine": -433.0,
+        "action_cost": -72.0
+      }
+    },
+    {
+      "endpoint": "final",
+      "seed": 54003,
+      "return": -621.0,
+      "ticks": 499,
+      "seconds": 7.75085973739624,
+      "primitive_actions": {
+        "Analyse": 263,
+        "DeployDecoy": 320,
+        "Remove": 295,
+        "Sleep": 1508,
+        "BlockTrafficZone": 6,
+        "Restore": 85,
+        "AllowTrafficZone": 18
+      },
+      "free_actions": {
+        "Analyse": 263,
+        "DeployDecoy": 320,
+        "Remove": 295,
+        "BlockTrafficZone": 6,
+        "Restore": 85,
+        "AllowTrafficZone": 18
+      },
+      "forced_sleep": 1508,
+      "reward_components": {
+        "BlueRewardMachine": -536.0,
+        "action_cost": -85.0
+      }
+    },
+    {
+      "endpoint": "final",
+      "seed": 54004,
+      "return": -168.0,
+      "ticks": 499,
+      "seconds": 8.095292091369629,
+      "primitive_actions": {
+        "Analyse": 399,
+        "Remove": 289,
+        "DeployDecoy": 247,
+        "Sleep": 1465,
+        "Restore": 61,
+        "AllowTrafficZone": 34
+      },
+      "free_actions": {
+        "Analyse": 399,
+        "Remove": 289,
+        "DeployDecoy": 247,
+        "Restore": 61,
+        "AllowTrafficZone": 34
+      },
+      "forced_sleep": 1465,
+      "reward_components": {
+        "BlueRewardMachine": -107.0,
+        "action_cost": -61.0
+      }
+    }
+  ],
+  "checkpoint_metadata": {
+    "initial": {
+      "blue_agent_0": {
+        "sha256": "30741f9cb396f7ae809b4825f4ac57e4bd98c2e3f0c29e56317af96f9569fac4",
+        "global_timestep": 0
+      },
+      "blue_agent_1": {
+        "sha256": "2d8788336c367a6dd96c5651444a075481a87ed59c21f7eb84c5c23b377a604b",
+        "global_timestep": 0
+      },
+      "blue_agent_2": {
+        "sha256": "014fc8b95c449c40378a9e6a3305f78740bdeccd31c3eba1b22d0524c1f9dfd2",
+        "global_timestep": 0
+      },
+      "blue_agent_3": {
+        "sha256": "e7bea9595223661e22d6368fced3d1c0cf81231ab2b7e1bd28b3f35d4b614ff3",
+        "global_timestep": 0
+      },
+      "blue_agent_4": {
+        "sha256": "9ce4b223fedcd5130fdc06b3375b1d0b6a192f62875f7dda9d831e741c990875",
+        "global_timestep": 0
+      }
+    },
+    "final": {
+      "blue_agent_0": {
+        "sha256": "d8a884757b54697e6fe77341322a7ea2b35697d5575250a93897b72b2a338f69",
+        "global_timestep": 1796400
+      },
+      "blue_agent_1": {
+        "sha256": "1158c06e3e4a48637dfe4e3989e4725de7562632f15691b77670f907feaa25f9",
+        "global_timestep": 1796400
+      },
+      "blue_agent_2": {
+        "sha256": "934a4a9a87b1e31f57fabf2cf237635a3acee5b169f5753965f2afea4ca2b4ca",
+        "global_timestep": 1796400
+      },
+      "blue_agent_3": {
+        "sha256": "dcbd33eb5385e0288b68d86f5aea4c8cd5502365c8520e90616bc9fd9642d272",
+        "global_timestep": 1796400
+      },
+      "blue_agent_4": {
+        "sha256": "bdbcc557332613476bce368c52012eb4c8e5d635fcbd5a859c44d54b2f5078b6",
+        "global_timestep": 1796400
+      }
+    }
+  },
+  "means": {
+    "author-restricted": -160.5,
+    "final": -370.5,
+    "initial": -2035.25
+  }
+}

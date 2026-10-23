@@ -1,0 +1,12 @@
+# Core versions of the already verified Python 3.10 server environment.
+numpy==1.26.4
+torch==2.2.0
+ray[rllib]==2.10.0
+pyarrow==14.0.2
+gymnasium==0.28.1
+pettingzoo==1.24.3
+streamlit==1.52.2
+altair==5.3.0
+pandas==2.3.3
+# Install the pinned local simulator after cloning its locked commit.
+-e ./cage-challenge-4

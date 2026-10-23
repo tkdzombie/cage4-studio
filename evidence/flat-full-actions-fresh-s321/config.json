@@ -1,0 +1,15 @@
+{
+  "workers": 24,
+  "batch": 8192,
+  "iterations": 50,
+  "seed": 321,
+  "run": "runs/flat-full-actions-fresh-s321",
+  "lr": 0.0003,
+  "reward_scale": 0.01,
+  "protocol": "flat-full-actions-history-correct",
+  "gae_lambda": 1.0,
+  "epochs": 10,
+  "minibatch": 2048,
+  "warm_start": null,
+  "level": "flat"
+}

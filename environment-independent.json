@@ -1,0 +1,42 @@
+{
+  "python": "3.10.22 | packaged by conda-forge | (main, Oct  6 2026, 22:55:54) [Clang 19.1.7 ]",
+  "executable": "/Users/tiankedi/cage4-research/.venv/bin/python",
+  "base_prefix": "/Users/tiankedi/cage4-runtime-independent",
+  "venv_resolved": "/Users/tiankedi/cage4-research/.venv-independent",
+  "modules": {
+    "numpy": {
+      "version": "1.26.4",
+      "file": "/Users/tiankedi/cage4-runtime-independent/lib/python3.10/site-packages/numpy/__init__.py"
+    },
+    "torch": {
+      "version": "2.2.0",
+      "file": "/Users/tiankedi/cage4-runtime-independent/lib/python3.10/site-packages/torch/__init__.py"
+    },
+    "ray": {
+      "version": "2.10.0",
+      "file": "/Users/tiankedi/cage4-research/.venv/lib/python3.10/site-packages/ray/__init__.py"
+    },
+    "pyarrow": {
+      "version": "14.0.2",
+      "file": "/Users/tiankedi/cage4-research/.venv/lib/python3.10/site-packages/pyarrow/__init__.py"
+    },
+    "gymnasium": {
+      "version": "0.28.1",
+      "file": "/Users/tiankedi/cage4-runtime-independent/lib/python3.10/site-packages/gymnasium/__init__.py"
+    },
+    "CybORG": {
+      "version": "4.0",
+      "file": "/Users/tiankedi/cage4-research/cage-challenge-4/CybORG/__init__.py"
+    }
+  },
+  "repositories": {
+    "cage-challenge-4": {
+      "commit": "8c3c50ca54b176c2de199847944e8dcc035497e3",
+      "tracked_changes": ""
+    },
+    "Hierarchical-MARL": {
+      "commit": "6fe960f5931f2d7dc5ef522f09ca4a179f377ee4",
+      "tracked_changes": ""
+    }
+  }
+}

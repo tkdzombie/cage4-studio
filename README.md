@@ -1,66 +1,40 @@
-# CAGE4 Studio
+# CAGE4 Studio · 算法实验起点
 
-独立算法研究项目 + 只读实验网页 + 本地 SSH 客户端。服务器已有环境可直接使用。
+当前使用 **CAGE4**。环境、完整回合、PPO学习、模型保存/恢复与共同场景评估已跑通，可以直接开始写自己的算法。
 
-## 开始训练
-
-在 Toolbox 的远程 PyCharm 中展开：
+服务器项目：`/Users/tiankedi/cage4-research`。PyCharm 打开这个目录，解释器用 `.venv/bin/python`（独立CAGE4环境，不依赖CAGE3）。
 
 ```text
-cage4-research/cage4-baselines/src/cage4_baselines/
-├── experiments/run_baseline.py   # 右键 Run / Debug
-└── algorithms/my_algorithm.py    # 自己的网络、损失、更新逻辑
+algorithms/my_algorithm.py      ← 写自己的 loss / PPO 扩展
+experiments/run_baseline.py     ← 选算法、初始化、运行名，右键 Run
+train.py                       ← 公共训练、采样、保存入口
+primitive_env.py                ← 固定的 CAGE4 环境适配
+compare_flat.py                 ← 模型恢复与共同场景评估
+runs/<运行名>/                  ← 新实验配置、源码、指标、模型（不提交Git）
+dashboard.py                   ← 只读看板
 ```
 
-启动文件顶部只需设置：
+先读 [算法修改指南](docs/ALGORITHM_GUIDE_zh.md)。模板原样等价于PPO，不冒充新算法。默认初始化 author；从零研究时改 scratch，两个比较方法必须使用相同初始化和预算。
 
-```python
-ALGORITHM = "mappo"
-EPISODES = None
-SEED = 101
+现有主要基线 `runs/flat-full-actions-author-init-s321/final`，单训练seed321，30更新/359280交互步，四开发场景回报从 −2035.25 到 −370.5。另保留冷启动PPO。详见 [结果](RESULTS.md)、[修复与失败记录](AUDIT.md)。这是实用baseline，不宣称论文性能复现。
+
+[环境协议和已执行命令](docs/BASELINE_PROTOCOL_zh.md) · [目录与旧文件说明](docs/PROJECT_LAYOUT_zh.md) · [运行环境指纹](environment-independent.json)
+
+## 看板与 app
+
+CAGE4 服务为服务器 loopback 8501。Mac 客户端只建 SSH 隧道并打开浏览器，不训练。新客户端名 **CAGE4 Studio Client.app**；CAGE3 客户端指向旧8502，请勿混用。
+
+```bash
+# 本地 Mac：按实际 SSH 主机和用户构建；产物留在 client/build（Git忽略）
+bash client/build_mac_app.sh client/build YOUR_SSH_HOST YOUR_USER 18501
 ```
 
-现有算法：`ippo`、`mappo`、`happo`、`mappo_lagrangian`、`macpo`。跑自己的代码设置 `ALGORITHM = "my_algorithm"`；模板默认沿用 MAPPO，未修改时不算新算法。环境、配置、预算、实验保存路径自动定位，无需填写额外参数。终端在启动文件所在目录、使用现有服务器 Python 执行 `python run_baseline.py` 也可。
+服务器手动启动看板：`bash ops/dashboard.sh start`；状态：`bash ops/dashboard.sh status`。没有自动训练队列或新增定时任务。关闭网页不影响训练。
 
-打开现有 Client.app 查看记录；网页可先开，关闭不影响训练。首个同步采样工作块完成后显示新曲线；并行采样期间可查看进程数、阶段和速度。
+## 历史文件与依赖
 
-## 项目目录
+`legacy/previous-platform` 保留此前五算法/OT平台源码，只用于追溯，其入口、预算、cost协议不属于当前baseline。当前入口不加载它。旧模型/日志和历史实验保留，避免丢失证据；无需复制或重跑旧方法。
 
-| 目录 | 用途 |
-|---|---|
-| cage4-baselines/src/cage4_baselines/envs/ | CybORG 场景、step/reset、Blue观测编码 |
-| cage4-baselines/src/cage4_baselines/algorithms/ | 自定义算法与基础对照 |
-| cage4-baselines/src/cage4_baselines/experiments/ | 运行入口与基础实验流程 |
-| cage4-baselines/src/cage4_baselines/paper/ | 五算法作者核心接入、统一训练与评估 |
-| cage4-baselines/src/cage4_baselines/safety/ | 业务cost与预算校准 |
-| cage4-baselines/configs/ | 按用途组织的有效YAML与固定预算 |
-| cage4-baselines/environments/ | 依赖版本参考；实际环境放源码外 |
-| protocol/ | 原子实验文件协议、状态与PID身份 |
-| server/ | 只读图表、拓扑、动作/观测回放、实验比较 |
-| client/ | 本地 SSH 转发与网页入口 |
-| ops/ | 服务安装/停止/查询/回滚、验证与打包 |
-| tests/、cage4-baselines/tests/ | 协议、服务、环境与算法回归测试 |
+两个上游目录 `cage-challenge-4/` 与 `Hierarchical-MARL/` 和运行环境放在服务器，不作为本仓库源文件上传。锁定版本及核对方法见 [部署说明](docs/PROJECT_LAYOUT_zh.md)。本仓库上传源码、指标与配置；完整模型包在服务器 `deliverables/cage4-baseline-20261023.tgz`，不混进Git历史。原始训练源码快照在 `evidence/`，新runner修改不追改历史证据。
 
-外部目录分别保存运行环境、锁定作者源码、实验数据和服务部署版本，不能当成临时文件删除。网页不执行训练，不读取checkpoint；Ground Truth和红队详细信息不输入Blue actor。
-
-## 使用和实验协议
-
-- [日常最简用法](docs/START_SIMPLE_zh.md)
-- [作者来源、超参数、正式训练与独立评估](docs/PAPER_BASELINES.md)
-- [业务cost、三档预算及独立校准依据](docs/SAFETY_COST_zh.md)
-- [安装、服务管理和回滚](docs/INSTALL_zh.md)
-- [实验记录格式与信息边界](docs/PROTOCOL.md)
-
-MACPO是作者核心的离散动作适配，不冒称未修改的官方CAGE4版本。默认业务cost预算24.748%，由20校准+20独立验证场景确定，是本项目研究协议。五算法已验证真实训练、权重保存及独立评估；未声称论文规模收敛/性能或理论安全保证，当前不支持断点续训。第三方许可与本仓库授权边界见 [NOTICE](NOTICE.md)。
-
-历史源码、旧入口、交付过程报告和重复说明不放在当前项目中；需要追溯时查Git历史。日常启动入口关闭字节码缓存写入，实验结果保存在源码目录外。
-
-结构化输入、正式训练批次和最近5次运行的永久删除规则见 [观测与训练协议](docs/OBSERVATIONS_zh.md)。
-
-研究实现核验见 [Baseline审计](docs/BASELINE_AUDIT_zh.md)：明确作者核心、CAGE4适配和仍需完成的正式多seed实验，不能将短程验收当作论文性能复现。
-
-Mac Studio 多核参数、50回合checkpoint及可复现吞吐测试见 [多核训练](docs/PERFORMANCE_zh.md)。MAPPO支持同步多环境采样；自定义算法保留单进程断点调试。
-
-预算默认5%（严格3%/宽松10%）、return判断及官方训练/评估设置，见 [训练与预算说明](docs/TRAINING_TARGETS_zh.md)。
-
-有约束算法的托管队列、自动验证和停止方式见 [实验管理说明](docs/CONSTRAINED_EXPERIMENTS_zh.md)。队列运行时PyCharm入口会阻止重复启动；独立Run默认选择MAPPO-L。
+沿用作者从state提取事件/block/decoy元数据的观测协议，不称纯Blue observation。引入新观测/约束需另外命名并公平比较。第三方源码与权重授权见 [NOTICE](NOTICE.md)。

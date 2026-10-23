@@ -1,0 +1,13 @@
+{
+  "workers": 24,
+  "batch": 8192,
+  "iterations": 60,
+  "seed": 321,
+  "run": "runs/master-valid-info-authorppo-s321",
+  "lr": 5e-05,
+  "reward_scale": 0.01,
+  "protocol": "valid-actions-info",
+  "gae_lambda": 1.0,
+  "epochs": 30,
+  "minibatch": 2048
+}

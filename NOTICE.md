@@ -1,5 +1,3 @@
-# 来源和许可边界
+# 来源与授权
 
-本工程由用户已有 cage4-studio 科研平台升级。历史源码与原作者声明保留在 Git 历史中，不在当前工作目录重复存放。原仓库未指定 LICENSE，本次未替用户选定开源许可证，也未改变仓库可见性。若要授予第三方再分发或复用权利，请由权利人明确选择许可证。
-
-CybORG / cage-challenge-4 是外部依赖，本包不内嵌其源码与第三方环境。测试对应 commit 8c3c50ca54b176c2de199847944e8dcc035497e3。其许可应从上游 LICENSE.txt 单独查看。PyTorch、Streamlit、Ray 等依赖各有自身许可。
+当前环境依赖 cage-challenge/cage-challenge-4，平坦wrapper和mask模型依赖 adityavs14/Hierarchical-MARL。上游仓库与权重需遵守各自LICENSE和使用条件。本项目保留独立适配与实际来源/修改记录，不重新授权上游代码、checkpoint或归档平台引用的第三方实现。旧平台授权说明见 legacy/previous-platform/NOTICE.md。

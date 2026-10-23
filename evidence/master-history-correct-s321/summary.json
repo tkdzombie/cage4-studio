@@ -1,0 +1,8 @@
+{
+  "status": "stopped",
+  "reason": "requested",
+  "iterations": 15,
+  "best_training_return": -828.75,
+  "last_return": -828.75,
+  "note": "training metrics only; convergence requires matched checkpoint evaluation"
+}

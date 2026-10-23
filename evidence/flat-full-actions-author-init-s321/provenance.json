@@ -1,0 +1,8 @@
+{
+  "ray": "2.10.0",
+  "torch": "2.2.0",
+  "source_sha256": {
+    "train.py": "464f35951386765adcd1d2bc53be43b1a0fadbffa891b8324221015c45da7b9d",
+    "primitive_env.py": "9c96a89b92695b61be73713b59aaccfe278550bd851a6c80292b1f8b2d969575"
+  }
+}
