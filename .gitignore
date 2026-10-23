@@ -22,3 +22,4 @@ client/settings.local
 /Hierarchical-MARL/
 maintenance-backups/
 archive/
+.venv

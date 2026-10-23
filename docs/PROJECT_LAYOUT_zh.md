@@ -22,3 +22,5 @@ git -C Hierarchical-MARL checkout 6fe960f5931f2d7dc5ef522f09ca4a179f377ee4
 ```
 
 `runtime-freeze.txt`是实际服务器包快照，其中的conda构建路径不是可直接移植的requirements。`requirements.txt`列核心版本，安装CybORG后若其上游依赖覆盖gym/Ray等需再核对核心版本；新机器安装尚未作为本次验收目标。以现有服务器解释器为准。用 `.venv/bin/python verify_flat.py`完成499步环境核对，再用小预算运行训练和模型恢复，不将依赖安装成功等价为学习验证。
+
+服务器根目录的64份旧诊断脚本/JSON/日志已移入 `archive/diagnostics-20261023/`，当前两份终点评估、配置和源码保留在主目录。服务器现有目录已关联同一GitHub仓库和main分支；venv、上游源码、checkpoint和归档均不提交Git。
