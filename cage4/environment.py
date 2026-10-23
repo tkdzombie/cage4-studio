@@ -2,7 +2,7 @@
 import os, sys
 from pathlib import Path
 import numpy as np
-ROOT=Path(os.environ.get('CAGE4_ROOT',Path.home()/'cage4-research'))
+ROOT=Path(os.environ.get('CAGE4_ROOT',Path(__file__).resolve().parents[1]))
 UPSTREAM=ROOT/'Hierarchical-MARL'/'marl-1policy'
 sys.path.insert(0,str(UPSTREAM))
 import BlueFlatWrapper_CC4 as flat_source
@@ -66,3 +66,6 @@ class PrimitiveEnv(MultiAgentEnv):
         for a in obs:info[a]={'team_return':self.team_return,'ticks':self.ticks,'action_mask':obs[a]['action_mask']}
         self.current=obs
         return obs,rewards,terminated,truncated,info
+
+# Old saved RLlib configs refer to this module name. Keep model loading compatible.
+sys.modules.setdefault("primitive_env", sys.modules[__name__])

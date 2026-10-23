@@ -1,0 +1,22 @@
+{
+  "algorithm": "ppo",
+  "run": "runs/ppo-scratch-long-s321",
+  "initialization": "scratch",
+  "seed": 321,
+  "iterations": 150,
+  "workers": 24,
+  "batch": 8192,
+  "minibatch": 2048,
+  "epochs": 10,
+  "lr": 0.0003,
+  "gae_lambda": 1.0,
+  "reward_scale": 0.01,
+  "protocol": "flat-full-actions-history-correct",
+  "checkpoint_every": 10,
+  "evaluation_seeds": [
+    54001,
+    54002,
+    54003,
+    54004
+  ]
+}

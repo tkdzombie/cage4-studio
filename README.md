@@ -1,22 +1,43 @@
-# CAGE4 算法实验项目
+# CAGE4 算法实验
 
-服务器项目：`/Users/tiankedi/cage4-research`。PyCharm打开该目录，解释器选择 `.venv/bin/python`。
+**目前1种baseline：平坦独立PPO（五个Blue各自训练策略）。** 作者权重初始化、随机初始化是两种起点，不是两种算法。主对照采用从零训练的PPO。
 
-- `algorithms/my_algorithm.py`：自己的 PPO loss / 更新扩展；原样等价于PPO。
-- `experiments/run_baseline.py`：选择ppo或my_algorithm、author或scratch初始化、唯一运行名及预算，右键Run。
-- `train.py`：公共采样、训练与模型保存。
-- `primitive_env.py`：固定CAGE4环境适配。
-- `compare_flat.py`：完整模型恢复及共同场景评估。
-- `models/ppo-author/`、`models/ppo-scratch/`：服务器保留的两份可用baseline末尾模型及其配置，不提交Git。
-- `runs/`：今后新实验自动生成的输出目录，不提交Git；历史运行结果已清除。
-- `dashboard.py`、`ops/dashboard.sh`：查看今后的实验曲线；`bash ops/dashboard.sh start`手动启动看板。
-- `client/`：本机CAGE4客户端源码；已安装app可直接使用。
+服务器：`/Users/tiankedi/cage4-research`；PyCharm解释器：`.venv/bin/python`。
 
-[算法修改与对比方法](docs/ALGORITHM_GUIDE_zh.md)。环境沿用作者state-derived事件/block/decoy观测，包含流量控制，官方原始团队奖励；有限回合500配置步/499实际transition。对比固定初始化、环境协议、观测权限、动作集合与交互预算。
+```text
+run.py                   统一启动入口，PyCharm可直接Run
+configs/                 只改实验配置：算法、初始化、预算、运行名
+algorithms/              只改算法：ppo.py 与 my_algorithm.py
+cage4/                   共用实现，一般不必改
+  environment.py         官方CAGE4适配与固定观测/动作协议
+  training.py            采样、更新、模型保存、结束后评估
+  evaluation.py          加载模型，用相同场景与随机数评估
+  config.py              配置验证
+  dashboard.py           只读实时看板
+models/                  服务器保留的可用PPO最终模型
+runs/                    新实验的配置、源码、曲线和checkpoint
+ops/、client/            看板与Mac客户端
+```
 
-服务器已备好独立环境、官方CAGE4与作者Hierarchical-MARL上游，不要删除 `.venv-independent`、`cage-challenge-4`、`Hierarchical-MARL`。基础runtime位于项目外的 `/Users/tiankedi/cage4-runtime-independent`。版本快照为 `runtime-freeze.txt`，核心依赖为 `requirements.txt`。
+`Hierarchical-MARL/`、`cage-challenge-4/`、`.venv-independent/`是服务器依赖目录。`runtime-freeze.txt`与`requirements.txt`记录依赖。不要编辑依赖来修改自己的算法。
 
-测试、诊断、旧平台、归档、历史结果、图表和重复模型包已从当前项目清除。新算法checkpoint依赖保存时的Python模块，保留算法类的导入路径。
+## 常用命令
 
-上游工作目录也已裁剪：删除未使用的h-marl-3policy/h-marl-4policy、官方测试和说明文档，保留平坦策略运行代码、作者初始化权重和模拟器运行包。上游Git记录保留，裁剪不修改运行代码。
-官方模拟器启动依赖 `CybORG/Tests/__init__.py` 和 `CybORG/Tests/utils.py`，这两个运行依赖保留，其余测试用例已删除。
+```bash
+# 代表性baseline：随机初始化，seed321，150更新，24采样worker
+.venv/bin/python run.py train --config configs/ppo.json
+# 自己的算法（先改algorithms/my_algorithm.py，再改唯一run名）
+.venv/bin/python run.py train --config configs/my_algorithm.json
+# 评估保留的模型
+.venv/bin/python run.py evaluate --run models/ppo-author --endpoints final
+# 看板
+bash ops/dashboard.sh start
+```
+
+PyCharm直接Run `run.py`默认读取`configs/my_algorithm.json`；也可在Run配置添加上述参数。新run拒绝覆盖已有目录。配置中的初始化为`scratch`或`author`；切换作者初始化时应合理设置lr/epochs，并对比较双方保持一致。
+
+当前长训练固定150更新，约1796400环境transition（24worker时每次实际11976，完整回合采样）；不因短期横盘提前停止。非有限learner数值会停止；Ctrl+C或在当前run下创建STOP文件会在当前更新后保存末尾并停止。固定预算只表示训练充分程度，不自动宣称收敛。
+
+每10更新保存latest，并保留initial/best/final；正式比较使用固定预算final。预算正常结束后自动在四个开发场景54001–54004评估initial/final并写入当前run，网页自动读取。单训练seed不等同跨seed稳定性。这些是新实验所需输出，旧测试/历史结果不再放项目中。
+
+[算法修改与比较约定](docs/ALGORITHM_GUIDE_zh.md)。环境沿用作者state-derived事件/block/decoy观测，包含流量控制、官方原始奖励，500配置步/499实际transition。保存模型的旧`primitive_env`模块名已兼容，可继续评估两份既有模型。来源授权见NOTICE.md。

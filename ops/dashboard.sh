@@ -9,7 +9,7 @@ case "${1:-status}" in
   if curl -fsS --max-time 3 http://127.0.0.1:8501/_stcore/health >/dev/null; then
    echo 'Port 8501 already serves a dashboard; verify status before changing it.'; exit 0
   fi
-  nohup "$ROOT/.venv/bin/python" -m streamlit run "$ROOT/dashboard.py" \
+  nohup "$ROOT/.venv/bin/python" -m streamlit run "$ROOT/cage4/dashboard.py" \
    --server.address 127.0.0.1 --server.port 8501 --server.headless true \
    --server.fileWatcherType none --browser.gatherUsageStats false \
    >>"$LOG_FILE" 2>&1 </dev/null &
