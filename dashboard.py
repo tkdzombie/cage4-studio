@@ -1,4 +1,4 @@
-"""Read-only CAGE4 H-MARL experiment view. No process controls or scheduling."""
+"""Read-only CAGE4 experiment view."""
 from pathlib import Path
 import json
 import pandas as pd
@@ -36,14 +36,9 @@ def view():
     if summary.exists():
         obj=json.loads(summary.read_text());st.write(f"已停止：{obj['reason']}。单看训练横盘不能证明收敛。")
     else:st.info('训练中，等待真实收益与平台证据。')
-    accept=ROOT/'acceptance.json'
-    if accept.exists():
-        obj=json.loads(accept.read_text())
-        if obj.get('run')==selected:st.write(obj.get('conclusion',''))
     st.subheader('同一协议、共同探索随机数的对照')
     ref=[]
-    names=['flat-author-initial-comparison.json','flat-author-progress-comparison.json','flat-author-endpoint-comparison.json','flat-author-holdout-comparison.json','flat-full-initial-comparison.json','flat-full-progress-comparison.json','flat-full-endpoint-comparison.json','flat-full-holdout-comparison.json','flat-initial-comparison.json','history-transfer-comparison.json','history-endpoint-comparison.json','history-holdout-comparison.json','endpoint-comparison.json','choice-diagnostic.json']
-    names=sorted(set(names+[p.name for p in ROOT.glob('*comparison*.json')]))
+    names=sorted(p.name for p in ROOT.glob('*comparison*.json'))
     for fname in names:
         p=ROOT/fname
         if not p.exists():continue
@@ -58,5 +53,5 @@ def view():
         st.json(rows[-1].get('learner',{}))
     with st.expander('协议与证据边界'):
         st.write('官方500配置步，实际499 transition；奖励不修改，五名Blue同一团队回报只展示一次。动作mask与官方合法槽相交；多步动作期间只允许Sleep；保留现有特征供critic使用；有限任务终点不bootstrap。history-correct在Remove后保留已有IOC，成功Restore后才重置。')
-        st.write('沿用作者从state提取事件、阻断和decoy元数据的观测接口，不冒称纯Blue observation；未加入红队session/感染真值。H-MARL支线固定15个作者子策略；Flat支线从原始动作端到端训练。作者原Flat权重默认关闭流量控制；在全动作协议上的表现属于迁移参考，不能当作原论文性能复现。两个场景用于快速诊断；小规模新场景对照也不代表大范围泛化结论。')
+        st.write('沿用作者从state提取事件、阻断和decoy元数据的观测接口，不冒称纯Blue observation；未加入红队session/感染真值。当前平坦策略从原始动作端到端训练。作者原Flat权重默认关闭流量控制；在全动作协议上的表现属于迁移参考，不能当作原论文性能复现。两个场景用于快速诊断；小规模新场景对照也不代表大范围泛化结论。')
 view()

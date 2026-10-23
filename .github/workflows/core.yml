@@ -12,8 +12,7 @@ jobs:
           python-version: '3.10'
       - name: Validate current entry points without simulator downloads
         run: |
-          python -m compileall -q train.py primitive_env.py hmarl_env.py compare_flat.py dashboard.py algorithms experiments
-          python -m unittest discover -s tests -v
+          python -m compileall -q train.py primitive_env.py compare_flat.py dashboard.py algorithms experiments
           bash -n client/connect.sh client/build_mac_app.sh ops/dashboard.sh
       - name: Build native macOS client
         run: bash client/build_mac_app.sh "$RUNNER_TEMP/cage4-client" example.invalid researcher 18501

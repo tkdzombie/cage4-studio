@@ -1,8 +1,0 @@
-{
-  "ray": "2.10.0",
-  "torch": "2.2.0",
-  "source_sha256": {
-    "train.py": "6854f67e06026aaa6d19ede5a12db4b3f3e424714c49bea24c4d5dc90c699859",
-    "hmarl_env.py": "728767151a048e61e85f7ba515be3dcaa72220c2bbb7189280eeca47a7652359"
-  }
-}

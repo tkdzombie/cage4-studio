@@ -1,4 +1,4 @@
-"""CAGE4 flat PPO baseline and custom-policy runner; explicit H4 diagnostic option."""
+"""CAGE4 flat PPO baseline and custom-policy runner."""
 import os
 os.environ.setdefault('RAY_DEDUP_LOGS','1')
 os.environ.setdefault('OMP_NUM_THREADS','1')
@@ -27,19 +27,15 @@ class Metrics(DefaultCallbacks):
 def mapper(agent_id, *args, **kwargs): return 'Agent'+agent_id[11]+('_master' if agent_id.endswith('_master') else '')
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--workers',type=int,default=8);p.add_argument('--batch',type=int,default=8192);p.add_argument('--iterations',type=int,default=60);p.add_argument('--seed',type=int,default=321);p.add_argument('--run',required=True);p.add_argument('--lr',type=float,default=3e-4);p.add_argument('--reward-scale',type=float,default=.01);p.add_argument('--protocol',default='flat-full-actions-history-correct');p.add_argument('--gae-lambda',type=float,default=.95);p.add_argument('--epochs',type=int,default=5);p.add_argument('--minibatch',type=int,default=1024);p.add_argument('--warm-start');p.add_argument('--warm-start-value-scale',type=float,default=1.0);p.add_argument('--level',choices=['master','flat'],default='flat');p.add_argument('--algorithm',choices=['ppo','my_algorithm'],default='ppo')
+    p=argparse.ArgumentParser();p.add_argument('--workers',type=int,default=8);p.add_argument('--batch',type=int,default=8192);p.add_argument('--iterations',type=int,default=60);p.add_argument('--seed',type=int,default=321);p.add_argument('--run',required=True);p.add_argument('--lr',type=float,default=3e-4);p.add_argument('--reward-scale',type=float,default=.01);p.add_argument('--protocol',default='flat-full-actions-history-correct');p.add_argument('--gae-lambda',type=float,default=.95);p.add_argument('--epochs',type=int,default=5);p.add_argument('--minibatch',type=int,default=1024);p.add_argument('--warm-start');p.add_argument('--warm-start-value-scale',type=float,default=1.0);p.add_argument('--level',choices=['flat'],default='flat');p.add_argument('--algorithm',choices=['ppo','my_algorithm'],default='ppo')
     a=p.parse_args(); torch.set_num_threads(1)
     if a.iterations<1 or a.workers<0:p.error('iterations must be positive; workers must be nonnegative')
     if a.algorithm=='my_algorithm':
         from algorithms.my_algorithm import MyAlgorithmPolicy
         PolicyClass=MyAlgorithmPolicy
     else:PolicyClass=ScaledRewardPPO
-    if a.level=='flat':
-        from primitive_env import PrimitiveEnv
-        EnvClass=PrimitiveEnv;env_source='primitive_env.py'
-    else:
-        from hmarl_env import MasterEnv
-        EnvClass=MasterEnv;env_source='hmarl_env.py'
+    from primitive_env import PrimitiveEnv
+    EnvClass=PrimitiveEnv;env_source='primitive_env.py'
     out=Path(a.run).resolve();out.mkdir(parents=True,exist_ok=False)
     (out/'config.json').write_text(json.dumps(vars(a),indent=2))
     (out/'source').mkdir()
@@ -51,7 +47,7 @@ def main():
     (out/'provenance.json').write_text(json.dumps(provenance,indent=2))
     ray.init(include_dashboard=False, num_cpus=a.workers+2, log_to_driver=False)
     env=EnvClass({'seed':a.seed,'protocol':a.protocol})
-    suffix='_master' if a.level=='master' else ''
+    suffix=''
     specs={f'Agent{i}{suffix}':PolicySpec(PolicyClass,env.observation_space[f'blue_agent_{i}{suffix}'],env.action_space[f'blue_agent_{i}{suffix}'],{'learner_reward_scale':a.reward_scale}) for i in range(5)}
     config=(PPOConfig().framework('torch').environment(EnvClass,env_config={'seed':a.seed,'protocol':a.protocol},disable_env_checking=True)
         .experimental(_disable_preprocessor_api=True)

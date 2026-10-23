@@ -23,3 +23,4 @@ client/settings.local
 maintenance-backups/
 archive/
 .venv
+models/

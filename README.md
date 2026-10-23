@@ -1,40 +1,21 @@
-# CAGE4 Studio · 算法实验起点
+# CAGE4 算法实验项目
 
-当前使用 **CAGE4**。环境、完整回合、PPO学习、模型保存/恢复与共同场景评估已跑通，可以直接开始写自己的算法。
+服务器项目：`/Users/tiankedi/cage4-research`。PyCharm打开该目录，解释器选择 `.venv/bin/python`。
 
-服务器项目：`/Users/tiankedi/cage4-research`。PyCharm 打开这个目录，解释器用 `.venv/bin/python`（独立CAGE4环境，不依赖CAGE3）。
+- `algorithms/my_algorithm.py`：自己的 PPO loss / 更新扩展；原样等价于PPO。
+- `experiments/run_baseline.py`：选择ppo或my_algorithm、author或scratch初始化、唯一运行名及预算，右键Run。
+- `train.py`：公共采样、训练与模型保存。
+- `primitive_env.py`：固定CAGE4环境适配。
+- `compare_flat.py`：完整模型恢复及共同场景评估。
+- `models/ppo-author/`、`models/ppo-scratch/`：服务器保留的两份可用baseline末尾模型及其配置，不提交Git。
+- `runs/`：今后新实验自动生成的输出目录，不提交Git；历史运行结果已清除。
+- `dashboard.py`、`ops/dashboard.sh`：查看今后的实验曲线；`bash ops/dashboard.sh start`手动启动看板。
+- `client/`：本机CAGE4客户端源码；已安装app可直接使用。
 
-```text
-algorithms/my_algorithm.py      ← 写自己的 loss / PPO 扩展
-experiments/run_baseline.py     ← 选算法、初始化、运行名，右键 Run
-train.py                       ← 公共训练、采样、保存入口
-primitive_env.py                ← 固定的 CAGE4 环境适配
-compare_flat.py                 ← 模型恢复与共同场景评估
-runs/<运行名>/                  ← 新实验配置、源码、指标、模型（不提交Git）
-dashboard.py                   ← 只读看板
-```
+[算法修改与对比方法](docs/ALGORITHM_GUIDE_zh.md)。环境沿用作者state-derived事件/block/decoy观测，包含流量控制，官方原始团队奖励；有限回合500配置步/499实际transition。对比固定初始化、环境协议、观测权限、动作集合与交互预算。
 
-先读 [算法修改指南](docs/ALGORITHM_GUIDE_zh.md)。模板原样等价于PPO，不冒充新算法。默认初始化 author；从零研究时改 scratch，两个比较方法必须使用相同初始化和预算。
+服务器已备好独立环境、官方CAGE4与作者Hierarchical-MARL上游，不要删除 `.venv-independent`、`cage-challenge-4`、`Hierarchical-MARL`。基础runtime位于项目外的 `/Users/tiankedi/cage4-runtime-independent`。版本快照为 `runtime-freeze.txt`，核心依赖为 `requirements.txt`。
 
-现有主要基线 `runs/flat-full-actions-author-init-s321/final`，单训练seed321，30更新/359280交互步，四开发场景回报从 −2035.25 到 −370.5。另保留冷启动PPO。详见 [结果](RESULTS.md)、[修复与失败记录](AUDIT.md)。这是实用baseline，不宣称论文性能复现。
+测试、诊断、旧平台、归档、历史结果、图表和重复模型包已从当前项目清除。新算法checkpoint依赖保存时的Python模块，保留算法类的导入路径。
 
-[环境协议和已执行命令](docs/BASELINE_PROTOCOL_zh.md) · [目录与旧文件说明](docs/PROJECT_LAYOUT_zh.md) · [运行环境指纹](environment-independent.json)
-
-## 看板与 app
-
-CAGE4 服务为服务器 loopback 8501。Mac 客户端只建 SSH 隧道并打开浏览器，不训练。新客户端名 **CAGE4 Studio Client.app**；CAGE3 客户端指向旧8502，请勿混用。
-
-```bash
-# 本地 Mac：按实际 SSH 主机和用户构建；产物留在 client/build（Git忽略）
-bash client/build_mac_app.sh client/build YOUR_SSH_HOST YOUR_USER 18501
-```
-
-服务器手动启动看板：`bash ops/dashboard.sh start`；状态：`bash ops/dashboard.sh status`。没有自动训练队列或新增定时任务。关闭网页不影响训练。
-
-## 历史文件与依赖
-
-`legacy/previous-platform` 保留此前五算法/OT平台源码，只用于追溯，其入口、预算、cost协议不属于当前baseline。当前入口不加载它。旧模型/日志和历史实验保留，避免丢失证据；无需复制或重跑旧方法。
-
-两个上游目录 `cage-challenge-4/` 与 `Hierarchical-MARL/` 和运行环境放在服务器，不作为本仓库源文件上传。锁定版本及核对方法见 [部署说明](docs/PROJECT_LAYOUT_zh.md)。本仓库上传源码、指标与配置；完整模型包在服务器 `deliverables/cage4-baseline-20261023.tgz`，不混进Git历史。原始训练源码快照在 `evidence/`，新runner修改不追改历史证据。
-
-沿用作者从state提取事件/block/decoy元数据的观测协议，不称纯Blue observation。引入新观测/约束需另外命名并公平比较。第三方源码与权重授权见 [NOTICE](NOTICE.md)。
+上游工作目录也已裁剪：删除未使用的h-marl-3policy/h-marl-4policy、官方测试和说明文档，保留平坦策略运行代码、作者初始化权重和模拟器运行包。上游Git记录保留，裁剪不修改运行代码。

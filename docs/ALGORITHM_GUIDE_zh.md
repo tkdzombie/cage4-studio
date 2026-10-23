@@ -20,6 +20,17 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 .venv/bin/python compare_flat.py \
 
 必须保持：官方环境奖励（展示team reward仅计一次）、作者state-derived观测权限、动作集合与mask、500配置步/499transition、红队类型、场景分布一致。learner reward scale .01 保持不变。加Shield/额外约束/新观测时明示协议，提供公平消融；不要悄悄改变baseline环境。
 
-当前作者参考无Block/Allow动作，不是与你的全控制策略严格同动作空间的主比较项。主对照是本项目同协议 PPO。54001–54004已用作开发诊断，正式报告应另冻结未用于调参的评估场景；这不要求现在增加复现工作。
+当前作者参考无Block/Allow动作，不是与你的全控制策略严格同动作空间的主比较项。主对照是本项目同协议 PPO。54001–54004已用作开发诊断，正式报告应另冻结未用于调参的评估场景。
 
 `initial/latest/best/final` 是真实 Ray checkpoint。warm-start 从权重开始，创建新优化器，非精确续训。新算法 checkpoint依赖保存时的 Python 模块，移动或改名算法类前保留兼容模块，历史 checkpoint 不随意删。
+
+## 评估服务器保留的baseline
+
+历史曲线/结果已清理。现成作者初始化baseline为 `models/ppo-author/final`，冷启动为 `models/ppo-scratch/final`；两者各保留config.json用于读取正确环境协议。仅评估末尾，不请求已删除的initial/latest：
+
+```bash
+.venv/bin/python compare_flat.py --run models/ppo-author --endpoints final \
+  --seeds 54001,54002,54003,54004 --output ppo-author-comparison.json
+```
+
+新实验仍保存到runs/<唯一运行名>，训练后再生成自己的评估结果。
